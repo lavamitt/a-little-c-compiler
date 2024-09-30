@@ -2,6 +2,7 @@ use std::str::Chars;
 use std::iter::Peekable;
 use std::env;
 use std::fs;
+use std::slice::Iter;
 
 
 #[derive(Debug)]
@@ -105,16 +106,140 @@ impl<'a> Lexer<'a> {
     }
 }
 
+#[derive(Debug)]
+enum Expression {
+    Constant(u32),
+}
+
+#[derive(Debug)]
+enum Statement {
+    Return(Expression),
+}
+
+#[derive(Debug)]
+struct FunctionDeclaration {
+    name: String,
+    body: Statement
+}
+
+#[derive(Debug)]
+struct Program {
+    function: FunctionDeclaration,
+}
+
+
+// enum ASTNode {
+//     Program(ASTNode::Function),
+//     Function(String, ASTNode::Statement),
+//     Statement(ASTNode::Return),
+//     Return(Expression),
+//     Expression(Constant),
+//     Constant(u32)
+// }
+
+fn parse_program<'a, I>(mut tokens: I) -> Program 
+where I: Iterator<Item = &'a Token>,
+{
+    Program { function: parse_function(tokens.by_ref()) }
+}
+
+fn parse_function<'a, I>(mut tokens: I) -> FunctionDeclaration 
+where I: Iterator<Item = &'a Token>,
+{
+    let mut current_token = tokens.next();
+    match current_token {
+        Some(Token::IntKeyword) => {},
+        _ => panic!("Function must start with int")
+    }
+
+    current_token = tokens.next();
+    let identifier: String = match current_token {
+        Some(Token::Identifier(function_name)) => {
+            function_name.to_string()
+        },
+        _ => panic!("Function name must be a string literal")
+    };
+
+
+    current_token = tokens.next();
+    match current_token {
+        Some(Token::OpenParen) => {},
+        _ => panic!("Open paren must follow function name")
+    };
+
+    current_token = tokens.next();
+    match current_token {
+        Some(Token::CloseParen) => {},
+        _ => panic!("Closing paren must follow function name")
+    };
+
+    current_token = tokens.next();
+    match current_token {
+        Some(Token::OpenBrace) => {},
+        _ => panic!("Function body must start with open brace")
+    };
+
+    let statement: Statement = parse_statement(tokens.by_ref());
+
+    current_token = tokens.next();
+    match current_token {
+        Some(Token::CloseBrace) => {},
+        _ => panic!("Function body must end with close brace")
+    };
+
+    FunctionDeclaration { name: identifier, body: statement }
+}
+
+
+fn parse_statement<'a, I>(mut tokens: I) -> Statement 
+where I: Iterator<Item = &'a Token>,
+{
+    let mut current_token = tokens.next();
+    let statement: Statement = match current_token {
+        Some(Token::ReturnKeyword) => {
+            Statement::Return(parse_expr(tokens.by_ref()))
+        },
+        _ => panic!("Statements must contain return")
+    };
+
+    current_token = tokens.next();
+    match current_token {
+        Some(Token::Semicolon) => {},
+        _ => panic!("Statement must end in a semicolon")
+    };
+
+    statement
+}
+
+
+fn parse_expr<'a, I>(mut tokens: I)  -> Expression 
+where I: Iterator<Item = &'a Token>,
+{
+    let current_token = tokens.next();
+    let expression: Expression = match current_token {
+        Some(Token::IntegerLiteral(int)) => {
+            Expression::Constant(*int)
+        },
+        _ => panic!("Expressions must be integers")
+    };
+
+    expression
+}
+
 
 fn main() {
     let args: Vec<String> = env::args().collect();
     let file_path = &args[1];
     let code = fs::read_to_string(file_path).unwrap();
     let mut lexer = Lexer::new(&code);
-    let tokens = lexer.lex();
+    let mut tokens = lexer.lex();
 
 
-    for token in tokens {
+    for token in &tokens {
         println!("{:?}", token);
     }
+
+
+    let program: Program = parse_program(tokens.iter());
+    println!("{:?}", program);
 }
