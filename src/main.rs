@@ -1,9 +1,8 @@
-use std::str::Chars;
-use std::iter::Peekable;
 use std::env;
 use std::fs;
+use std::iter::Peekable;
 use std::slice::Iter;
-
+use std::str::Chars;
 
 // LEXER
 
@@ -21,7 +20,6 @@ enum Token {
     Unknown(String), // To handle unexpected tokens
 }
 
-
 fn is_keyword(word: &str) -> Option<Token> {
     match word {
         "int" => Some(Token::IntKeyword),
@@ -30,16 +28,14 @@ fn is_keyword(word: &str) -> Option<Token> {
     }
 }
 
-
 struct Lexer<'a> {
     input: Peekable<Chars<'a>>,
 }
 
-
 impl<'a> Lexer<'a> {
     fn new(input: &'a str) -> Self {
         Lexer {
-            input: input.chars().peekable()
+            input: input.chars().peekable(),
         }
     }
 
@@ -123,7 +119,7 @@ enum Statement {
 #[derive(Debug)]
 struct FunctionDeclaration {
     name: String,
-    body: Statement
+    body: Statement,
 }
 
 #[derive(Debug)]
@@ -131,99 +127,96 @@ struct Program {
     function: FunctionDeclaration,
 }
 
-
-fn parse_program<'a, I>(mut tokens: I) -> Program 
-where I: Iterator<Item = &'a Token>,
+fn parse_program<'a, I>(mut tokens: I) -> Program
+where
+    I: Iterator<Item = &'a Token>,
 {
-    Program { function: parse_function(tokens.by_ref()) }
+    Program {
+        function: parse_function(tokens.by_ref()),
+    }
 }
 
-fn parse_function<'a, I>(mut tokens: I) -> FunctionDeclaration 
-where I: Iterator<Item = &'a Token>,
+fn parse_function<'a, I>(mut tokens: I) -> FunctionDeclaration
+where
+    I: Iterator<Item = &'a Token>,
 {
     let mut current_token = tokens.next();
     match current_token {
-        Some(Token::IntKeyword) => {},
-        _ => panic!("Function must start with int")
+        Some(Token::IntKeyword) => {}
+        _ => panic!("Function must start with int"),
     }
 
     current_token = tokens.next();
     let identifier: String = match current_token {
-        Some(Token::Identifier(function_name)) => {
-            function_name.to_string()
-        },
-        _ => panic!("Function name must be a string literal")
-    };
-
-
-    current_token = tokens.next();
-    match current_token {
-        Some(Token::OpenParen) => {},
-        _ => panic!("Open paren must follow function name")
+        Some(Token::Identifier(function_name)) => function_name.to_string(),
+        _ => panic!("Function name must be a string literal"),
     };
 
     current_token = tokens.next();
     match current_token {
-        Some(Token::CloseParen) => {},
-        _ => panic!("Closing paren must follow function name")
+        Some(Token::OpenParen) => {}
+        _ => panic!("Open paren must follow function name"),
     };
 
     current_token = tokens.next();
     match current_token {
-        Some(Token::OpenBrace) => {},
-        _ => panic!("Function body must start with open brace")
+        Some(Token::CloseParen) => {}
+        _ => panic!("Closing paren must follow function name"),
+    };
+
+    current_token = tokens.next();
+    match current_token {
+        Some(Token::OpenBrace) => {}
+        _ => panic!("Function body must start with open brace"),
     };
 
     let statement: Statement = parse_statement(tokens.by_ref());
 
     current_token = tokens.next();
     match current_token {
-        Some(Token::CloseBrace) => {},
-        _ => panic!("Function body must end with close brace")
+        Some(Token::CloseBrace) => {}
+        _ => panic!("Function body must end with close brace"),
     };
 
-    FunctionDeclaration { name: identifier, body: statement }
+    FunctionDeclaration {
+        name: identifier,
+        body: statement,
+    }
 }
 
-
-fn parse_statement<'a, I>(mut tokens: I) -> Statement 
-where I: Iterator<Item = &'a Token>,
+fn parse_statement<'a, I>(mut tokens: I) -> Statement
+where
+    I: Iterator<Item = &'a Token>,
 {
     let mut current_token = tokens.next();
     let statement: Statement = match current_token {
-        Some(Token::ReturnKeyword) => {
-            Statement::Return(parse_expr(tokens.by_ref()))
-        },
-        _ => panic!("Statements must contain return")
+        Some(Token::ReturnKeyword) => Statement::Return(parse_expr(tokens.by_ref())),
+        _ => panic!("Statements must contain return"),
     };
 
     current_token = tokens.next();
     match current_token {
-        Some(Token::Semicolon) => {},
-        _ => panic!("Statement must end in a semicolon")
+        Some(Token::Semicolon) => {}
+        _ => panic!("Statement must end in a semicolon"),
     };
 
     statement
 }
 
-
-fn parse_expr<'a, I>(mut tokens: I)  -> Expression 
-where I: Iterator<Item = &'a Token>,
+fn parse_expr<'a, I>(mut tokens: I) -> Expression
+where
+    I: Iterator<Item = &'a Token>,
 {
     let current_token = tokens.next();
     let expression: Expression = match current_token {
-        Some(Token::IntegerLiteral(int)) => {
-            Expression::Constant(*int)
-        },
-        _ => panic!("Expressions must be integers")
+        Some(Token::IntegerLiteral(int)) => Expression::Constant(*int),
+        _ => panic!("Expressions must be integers"),
     };
 
     expression
 }
 
-
 // CODEGEN
-
 
 fn codegen(program: Program, assembly: &mut String) {
     codegen_function(program.function, assembly);
@@ -243,18 +236,17 @@ fn codegen_statement(statement: Statement, assembly: &mut String) {
             codegen_expression(expr, assembly);
             assembly.push_str(", %eax\n");
             assembly.push_str("retq\n");
-        },
-        _ => panic!("Found unknown statement type")
+        }
+        _ => panic!("Found unknown statement type"),
     };
 }
-
 
 fn codegen_expression(expression: Expression, assembly: &mut String) {
     let constant = match expression {
         Expression::Constant(num) => {
             format!("${}", num)
-        },
-        _ => panic!("Found unknown expression")
+        }
+        _ => panic!("Found unknown expression"),
     };
 
     assembly.push_str(constant.as_str());
@@ -269,11 +261,9 @@ fn main() {
     let mut lexer = Lexer::new(&code);
     let mut tokens = lexer.lex();
 
-
     for token in &tokens {
         println!("{:?}", token);
     }
-
 
     let program: Program = parse_program(tokens.iter());
     println!("{:?}", program);
