@@ -5,6 +5,8 @@ use std::fs;
 use std::slice::Iter;
 
 
+// LEXER
+
 #[derive(Debug)]
 enum Token {
     OpenBrace,
@@ -106,6 +108,8 @@ impl<'a> Lexer<'a> {
     }
 }
 
+// PARSER
+
 #[derive(Debug)]
 enum Expression {
     Constant(u32),
@@ -127,15 +131,6 @@ struct Program {
     function: FunctionDeclaration,
 }
 
-
-// enum ASTNode {
-//     Program(ASTNode::Function),
-//     Function(String, ASTNode::Statement),
-//     Statement(ASTNode::Return),
-//     Return(Expression),
-//     Expression(Constant),
-//     Constant(u32)
-// }
 
 fn parse_program<'a, I>(mut tokens: I) -> Program 
 where I: Iterator<Item = &'a Token>,
@@ -227,6 +222,46 @@ where I: Iterator<Item = &'a Token>,
 }
 
 
+// CODEGEN
+
+
+fn codegen(program: Program, assembly: &mut String) {
+    codegen_function(program.function, assembly);
+}
+
+fn codegen_function(function: FunctionDeclaration, assembly: &mut String) {
+    assembly.push_str(format!(".globl {}\n", function.name).as_str());
+    assembly.push_str(format!("_{}:\n", function.name).as_str());
+
+    codegen_statement(function.body, assembly);
+}
+
+fn codegen_statement(statement: Statement, assembly: &mut String) {
+    match statement {
+        Statement::Return(expr) => {
+            assembly.push_str("movl ");
+            codegen_expression(expr, assembly);
+            assembly.push_str(", %eax\n");
+            assembly.push_str("retq\n");
+        },
+        _ => panic!("Found unknown statement type")
+    };
+}
+
+
+fn codegen_expression(expression: Expression, assembly: &mut String) {
+    let constant = match expression {
+        Expression::Constant(num) => {
+            format!("${}", num)
+        },
+        _ => panic!("Found unknown expression")
+    };
+
+    assembly.push_str(constant.as_str());
+}
+
+// MAIN
+
 fn main() {
     let args: Vec<String> = env::args().collect();
     let file_path = &args[1];
@@ -242,4 +277,8 @@ fn main() {
 
     let program: Program = parse_program(tokens.iter());
     println!("{:?}", program);
+
+    let mut assembly = String::new();
+    codegen(program, &mut assembly);
+    println!("{assembly}");
 }
