@@ -1,6 +1,8 @@
 use std::env;
 use std::fs;
 use std::iter::Peekable;
+use std::path::Path;
+use std::process::Command;
 use std::slice::Iter;
 use std::str::Chars;
 
@@ -223,7 +225,7 @@ fn codegen(program: Program, assembly: &mut String) {
 }
 
 fn codegen_function(function: FunctionDeclaration, assembly: &mut String) {
-    assembly.push_str(format!(".globl {}\n", function.name).as_str());
+    assembly.push_str(format!(".globl _{}\n", function.name).as_str());
     assembly.push_str(format!("_{}:\n", function.name).as_str());
 
     codegen_statement(function.body, assembly);
@@ -271,4 +273,25 @@ fn main() {
     let mut assembly = String::new();
     codegen(program, &mut assembly);
     println!("{assembly}");
+
+    let path = Path::new(file_path);
+    let output_assembly_path = format!(
+        "src/{}_assembly.s",
+        path.file_name().unwrap().to_str().unwrap()
+    );
+    fs::write(output_assembly_path.to_string(), assembly).expect("Unable to write file");
+
+    let gcc_output = Command::new("gcc")
+        .arg(output_assembly_path)
+        .arg("-o")
+        .arg("out")
+        .output()
+        .expect("Failed to execute gcc");
+
+    if gcc_output.status.success() {
+        println!("gcc executed successfully");
+    } else {
+        eprintln!("gcc failed to execute");
+        eprintln!("stderr: {}", String::from_utf8_lossy(&gcc_output.stderr));
+    }
 }
