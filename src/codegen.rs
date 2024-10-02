@@ -33,5 +33,3 @@ fn codegen_expression(expression: Expression, assembly: &mut String) {
 
     assembly.push_str(constant.as_str());
 }
-
-
