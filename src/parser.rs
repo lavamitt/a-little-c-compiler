@@ -1,8 +1,16 @@
 use crate::lexer::Token;
 
 #[derive(Debug)]
+pub enum UnaryOperator {
+    Negation,
+    BitwiseComplement,
+    LogicalNegation,
+}
+
+#[derive(Debug)]
 pub enum Expression {
     Constant(u32),
+    UnaryOperation(UnaryOperator, Box<Expression>),
 }
 
 #[derive(Debug)]
@@ -21,91 +29,106 @@ pub struct Program {
     pub function: FunctionDeclaration,
 }
 
-pub fn parse_program<'a, I>(mut tokens: I) -> Program
+pub fn parse_program<'a, I>(tokens: I) -> Program
 where
     I: Iterator<Item = &'a Token>,
 {
-    Program {
-        function: parse_function(tokens.by_ref()),
-    }
+    let (function, _) = parse_function(tokens);
+    Program { function }
 }
 
-fn parse_function<'a, I>(mut tokens: I) -> FunctionDeclaration
+fn parse_function<'a, I>(mut tokens: I) -> (FunctionDeclaration, I)
 where
     I: Iterator<Item = &'a Token>,
 {
-    let mut current_token = tokens.next();
-    match current_token {
+    match tokens.next() {
         Some(Token::IntKeyword) => {}
         _ => panic!("Function must start with int"),
     }
 
-    current_token = tokens.next();
-    let identifier: String = match current_token {
+    let identifier = match tokens.next() {
         Some(Token::Identifier(function_name)) => function_name.to_string(),
         _ => panic!("Function name must be a string literal"),
     };
 
-    current_token = tokens.next();
-    match current_token {
+    match tokens.next() {
         Some(Token::OpenParen) => {}
         _ => panic!("Open paren must follow function name"),
     };
 
-    current_token = tokens.next();
-    match current_token {
+    match tokens.next() {
         Some(Token::CloseParen) => {}
         _ => panic!("Closing paren must follow function name"),
     };
 
-    current_token = tokens.next();
-    match current_token {
+    match tokens.next() {
         Some(Token::OpenBrace) => {}
         _ => panic!("Function body must start with open brace"),
     };
 
-    let statement: Statement = parse_statement(tokens.by_ref());
+    let (statement, mut tokens) = parse_statement(tokens);
 
-    current_token = tokens.next();
-    match current_token {
+    match tokens.next() {
         Some(Token::CloseBrace) => {}
         _ => panic!("Function body must end with close brace"),
     };
 
-    FunctionDeclaration {
-        name: identifier,
-        body: statement,
-    }
+    (
+        FunctionDeclaration {
+            name: identifier,
+            body: statement,
+        },
+        tokens,
+    )
 }
 
-fn parse_statement<'a, I>(mut tokens: I) -> Statement
+fn parse_statement<'a, I>(mut tokens: I) -> (Statement, I)
 where
     I: Iterator<Item = &'a Token>,
 {
-    let mut current_token = tokens.next();
-    let statement: Statement = match current_token {
-        Some(Token::ReturnKeyword) => Statement::Return(parse_expr(tokens.by_ref())),
+    let (statement, mut tokens) = match tokens.next() {
+        Some(Token::ReturnKeyword) => {
+            let (expr, tokens) = parse_expr(tokens);
+            (Statement::Return(expr), tokens)
+        }
         _ => panic!("Statements must contain return"),
     };
 
-    current_token = tokens.next();
-    match current_token {
+    match tokens.next() {
         Some(Token::Semicolon) => {}
         _ => panic!("Statement must end in a semicolon"),
     };
 
-    statement
+    (statement, tokens)
 }
 
-fn parse_expr<'a, I>(mut tokens: I) -> Expression
+fn parse_expr<'a, I>(mut tokens: I) -> (Expression, I)
 where
     I: Iterator<Item = &'a Token>,
 {
-    let current_token = tokens.next();
-    let expression: Expression = match current_token {
-        Some(Token::IntegerLiteral(int)) => Expression::Constant(*int),
-        _ => panic!("Expressions must be integers"),
-    };
-
-    expression
+    match tokens.next() {
+        Some(Token::IntegerLiteral(int)) => (Expression::Constant(*int), tokens),
+        Some(Token::Negation) => {
+            let (expr, tokens) = parse_expr(tokens);
+            (
+                Expression::UnaryOperation(UnaryOperator::Negation, Box::new(expr)),
+                tokens,
+            )
+        }
+        Some(Token::BitwiseComplement) => {
+            let (expr, tokens) = parse_expr(tokens);
+            (
+                Expression::UnaryOperation(UnaryOperator::BitwiseComplement, Box::new(expr)),
+                tokens,
+            )
+        }
+        Some(Token::LogicalNegation) => {
+            let (expr, tokens) = parse_expr(tokens);
+            (
+                Expression::UnaryOperation(UnaryOperator::LogicalNegation, Box::new(expr)),
+                tokens,
+            )
+        }
+        _ => panic!("Did not find a way to parse the expression"),
+    }
 }

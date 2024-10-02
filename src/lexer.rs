@@ -12,7 +12,10 @@ pub enum Token {
     ReturnKeyword,
     Identifier(String),
     IntegerLiteral(u32),
-    Unknown(String), // To handle unexpected tokens
+    Negation,          // -
+    BitwiseComplement, // ~
+    LogicalNegation,   // !
+    Unknown(String),   // To handle unexpected tokens
 }
 
 pub fn is_keyword(word: &str) -> Option<Token> {
@@ -87,6 +90,9 @@ impl<'a> Lexer<'a> {
                 '(' => Token::OpenParen,
                 ')' => Token::CloseParen,
                 ';' => Token::Semicolon,
+                '-' => Token::Negation,
+                '~' => Token::BitwiseComplement,
+                '!' => Token::LogicalNegation,
                 c if c.is_whitespace() => continue,
                 c if c.is_alphabetic() => self.lex_identifier(c),
                 c if c.is_numeric() => self.lex_integer_literal(c),
