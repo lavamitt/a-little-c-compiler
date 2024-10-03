@@ -1,7 +1,9 @@
+mod codeemission;
 mod codegen;
 mod lexer;
 mod parser;
 
+use crate::codeemission::emit_code;
 use crate::codegen::codegen;
 use crate::lexer::Lexer;
 use crate::parser::parse_program;
@@ -35,9 +37,14 @@ fn main() {
     println!("");
 
     // CODEGEN
-    let mut assembly = String::new();
-    codegen(program, &mut assembly);
+    let codegen = codegen(program);
     println!("############## CODEGEN DEBUG INFO ##############");
+    println!("{:?}", codegen);
+    println!("");
+
+    // CODE EMISSION
+    let assembly = emit_code(codegen);
+    println!("############## CODEEMISSION DEBUG INFO ##############");
     println!("{assembly}");
     println!("");
 
