@@ -1,48 +1,71 @@
-use crate::parser::{Expression, FunctionDeclaration, Program, Statement};
+use crate::parser::{ASTExpression, ASTFunctionDefinition, ASTProgram, ASTStatement, ASTUnaryOperator};
 
 #[derive(Debug)]
-pub enum Operand {
-    Imm(u32),
-    Register,
+pub enum TACKYVal {
+	Constant(u32),
+	Var(String),
 }
 
 #[derive(Debug)]
-pub enum Instruction {
-    Mov(Operand, Operand), // src dst
-    Ret,
+pub enum TACKYUnaryOperator {
+	Complement,
+	Negate,
 }
 
 #[derive(Debug)]
-pub struct AssemblyFunctionDefinition {
+pub enum TACKYInstruction {
+	Unary(TACKYUnaryOperator, TACKYVal, TACKYVal), // src dst
+    Return(TACKYVal),
+}
+
+#[derive(Debug)]
+pub struct TACKYFunctionDefinition {
     pub name: String,
-    pub instructions: Vec<Instruction>,
+    pub instructions: Vec<TACKYInstruction>,
 }
 
 #[derive(Debug)]
-pub struct AssemblyProgram {
-    pub function: AssemblyFunctionDefinition,
+pub struct TACKYProgram {
+    pub function: TACKYFunctionDefinition,
 }
 
-pub fn codegen(program: Program) -> AssemblyProgram {
+pub struct TACKYHelperFunctions {
+	tmp_register_counter: u32,
+}
+
+impl TACKYHelperFunctions {
+	fn make_temporary_register(&mut self) -> String {
+		// let new_temporary_register = format!("_{}_tmp.{}", function_name, self.tmp_register_counter.to_string());
+		let new_temporary_register = format!("tmp.{}", self.tmp_register_counter.to_string());
+		self.tmp_register_counter += 1;
+		new_temporary_register
+	}
+}
+
+static helper: TACKYHelperFunctions = TACKYHelperFunctions { tmp_register_counter: 0};
+
+
+pub fn codegen(program: ASTProgram) -> TACKYProgram {
     let function = codegen_function(program.function);
-    AssemblyProgram { function }
+    TACKYProgram { function }
 }
 
-fn codegen_function(function: FunctionDeclaration) -> AssemblyFunctionDefinition {
+fn codegen_function(function: ASTFunctionDefinition) -> TACKYFunctionDefinition {
     let name = function.name;
     let instructions = codegen_body(function.body);
 
-    AssemblyFunctionDefinition { name, instructions }
+    TACKYFunctionDefinition { name, instructions }
 }
 
-fn codegen_body(statement: Statement) -> Vec<Instruction> {
-    let mut instructions: Vec<Instruction> = Vec::new();
+fn codegen_body(statement: ASTStatement) -> Vec<TACKYInstruction> {
+    let mut instructions: Vec<TACKYInstruction> = Vec::new();
 
     match statement {
-        Statement::Return(expr) => {
-            let return_operand = codegen_expression(expr);
-            instructions.push(Instruction::Mov(return_operand, Operand::Register));
-            instructions.push(Instruction::Ret);
+        ASTStatement::Return(expr) => {
+            let return_val = codegen_expression(*expr, &mut instructions);
+            instructions.push(TACKYInstruction::Return(return_val))
+            // instructions.push(Instruction::Mov(return_operand, Operand::Register));
+            // instructions.push(Instruction::Ret);
         }
         _ => panic!("Found unknown statement type"),
     };
@@ -50,11 +73,27 @@ fn codegen_body(statement: Statement) -> Vec<Instruction> {
     instructions
 }
 
-fn codegen_expression(expression: Expression) -> Operand {
+fn codegen_expression(expression: ASTExpression, instructions: &mut Vec<TACKYInstruction>) -> TACKYVal {
     let operand = match expression {
-        Expression::Constant(num) => Operand::Imm(num),
+        ASTExpression::Constant(num) => TACKYVal::Constant(num),
+        ASTExpression::UnaryOperation(ast_unop, expr) => {
+        	let src = codegen_expression(expr, instructions);
+        	let dst_name = helper.make_temporary_register();
+        	let dst = TACKYVal::Var(dst_name);
+        	let tacky_unop = convert_unop(ast_unop);
+        	instructions.push(TACKYInstruction::Unary(tacky_unop, src, dst));
+        	dst
+        }
         _ => panic!("Found unknown expression"),
     };
 
     operand
+}
+
+fn convert_unop(ast_unop: ASTUnaryOperator) -> TACKYUnaryOperator {
+	match ast_unop {
+		ASTUnaryOperator::Negation => TACKYUnaryOperator::Negate,
+		ASTUnaryOperator::BitwiseComplement => TACKYUnaryOperator::Complement,
+		_ => panic!("Found unimplemented unary operator"),
+	}
 }

@@ -1,7 +1,7 @@
 use std::iter::Peekable;
 use std::str::Chars;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Token {
     OpenBrace,
     CloseBrace,
@@ -15,6 +15,7 @@ pub enum Token {
     Negation,          // -
     BitwiseComplement, // ~
     LogicalNegation,   // !
+    Decrement, // --
     Unknown(String),   // To handle unexpected tokens
 }
 
@@ -90,6 +91,10 @@ impl<'a> Lexer<'a> {
                 '(' => Token::OpenParen,
                 ')' => Token::CloseParen,
                 ';' => Token::Semicolon,
+                '-' if self.peek_char() == Some(&'-') => {
+                	self.next_char();
+                	Token::Decrement
+                },
                 '-' => Token::Negation,
                 '~' => Token::BitwiseComplement,
                 '!' => Token::LogicalNegation,

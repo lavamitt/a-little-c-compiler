@@ -1,4 +1,4 @@
-use crate::codegen::{AssemblyFunctionDefinition, AssemblyProgram, Instruction, Operand};
+use crate::codegen::{AssemblyFunctionDefinition, AssemblyProgram, Instruction, Val};
 const INDENT: &str = "    ";
 
 pub fn emit_code(program: AssemblyProgram) -> String {
