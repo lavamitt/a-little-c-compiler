@@ -1,4 +1,4 @@
-use crate::codegen::{AssemblyFunctionDefinition, AssemblyProgram, Instruction, Val};
+use crate::codegen::{TACKYFunctionDefinition, TACKYProgram, TACKYInstruction, TACKYVal};
 const INDENT: &str = "    ";
 
 pub fn emit_code(program: AssemblyProgram) -> String {

@@ -1,10 +1,10 @@
 mod codeemission;
-mod codegen;
+mod tackygen;
 mod lexer;
 mod parser;
 
 use crate::codeemission::emit_code;
-use crate::codegen::codegen;
+use crate::tackygen::tackygen;
 use crate::lexer::Lexer;
 use crate::parser::parse_program;
 use std::env;
@@ -12,10 +12,34 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
+pub enum STAGE {
+	LEXING,
+	PARSING,
+    TACKY,
+    CODEGEN,
+    ASSEMBLYGEN,
+    CODEEMISSION,
+    NONE
+}
+
 // MAIN
 
 fn main() {
     let args: Vec<String> = env::args().collect();
+
+    let mut up_until_stage: STAGE = STAGE::NONE;
+
+    if args.len() > 1 {
+        for arg in &args[1..] {
+            match arg.as_str() {
+                "--lex" => {up_until_stage = STAGE::LEXING},
+                "--parse" => {up_until_stage = STAGE::PARSING},
+                "--tacky" => {up_until_stage = STAGE::TACKY},
+                "--codegen" => {up_until_stage = STAGE::CODEGEN}
+            }
+        }
+    }
+
     let file_path = &args[1];
     println!("{}", file_path);
     let code = fs::read_to_string(file_path).unwrap();
@@ -37,7 +61,7 @@ fn main() {
     println!("");
 
     // CODEGEN
-    let codegen = codegen(program);
+    let codegen = tackygen(program);
     println!("############## CODEGEN DEBUG INFO ##############");
     println!("{:?}", codegen);
     println!("");

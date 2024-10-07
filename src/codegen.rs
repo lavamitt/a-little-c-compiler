@@ -1,99 +1,93 @@
-use crate::parser::{ASTExpression, ASTFunctionDefinition, ASTProgram, ASTStatement, ASTUnaryOperator};
+use crate::tackygen::{TACKYFunctionDefinition, TACKYProgram, TACKYInstruction, TACKYVal, TACKYUnaryOperator};
 
 #[derive(Debug)]
-pub enum TACKYVal {
-	Constant(u32),
-	Var(String),
+pub enum Reg {
+	AX,
+    R10
 }
 
 #[derive(Debug)]
-pub enum TACKYUnaryOperator {
-	Complement,
-	Negate,
+pub enum Operand {
+	Imm(u32),
+    Register(Reg),
+    Pseudo(String),
+    Stack(i32), // Stack(-4) == -4(%rbp)
 }
 
 #[derive(Debug)]
-pub enum TACKYInstruction {
-	Unary(TACKYUnaryOperator, TACKYVal, TACKYVal), // src dst
-    Return(TACKYVal),
+pub enum AssemblyUnaryOperator {
+    Not,
+    Neg,
 }
 
 #[derive(Debug)]
-pub struct TACKYFunctionDefinition {
+pub enum AssemblyInstruction {
+    Mov(Operand, Operand),
+    Unary(AssemblyUnaryOperator, Operand),
+    AllocateStack(u32), // ex: subq $n, %rsp
+    Ret
+}
+
+#[derive(Debug)]
+pub struct AssemblyFunctionDefinition {
     pub name: String,
-    pub instructions: Vec<TACKYInstruction>,
+    pub instructions: Vec<AssemblyInstruction>,
 }
 
 #[derive(Debug)]
-pub struct TACKYProgram {
+pub struct AssemblyProgram {
     pub function: TACKYFunctionDefinition,
 }
 
-pub struct TACKYHelperFunctions {
-	tmp_register_counter: u32,
+pub fn assemblygen(program: TACKYProgram) -> AssemblyProgram {
+    let function = assemblygen_function(program.function);
+    AssemblyProgram { function }
 }
 
-impl TACKYHelperFunctions {
-	fn make_temporary_register(&mut self) -> String {
-		// let new_temporary_register = format!("_{}_tmp.{}", function_name, self.tmp_register_counter.to_string());
-		let new_temporary_register = format!("tmp.{}", self.tmp_register_counter.to_string());
-		self.tmp_register_counter += 1;
-		new_temporary_register
-	}
-}
-
-static helper: TACKYHelperFunctions = TACKYHelperFunctions { tmp_register_counter: 0};
-
-
-pub fn codegen(program: ASTProgram) -> TACKYProgram {
-    let function = codegen_function(program.function);
-    TACKYProgram { function }
-}
-
-fn codegen_function(function: ASTFunctionDefinition) -> TACKYFunctionDefinition {
+fn assemblygen_function(function: TACKYFunctionDefinition) -> AssemblyFunctionDefinition {
     let name = function.name;
-    let instructions = codegen_body(function.body);
+    let instructions = assemblygen_body(&function.instructions);
 
-    TACKYFunctionDefinition { name, instructions }
+    AssemblyFunctionDefinition { name, instructions }
 }
 
-fn codegen_body(statement: ASTStatement) -> Vec<TACKYInstruction> {
-    let mut instructions: Vec<TACKYInstruction> = Vec::new();
+fn assemblygen_body(instructions: &Vec<TACKYInstruction>) -> Vec<AssemblyInstruction> {
+    let mut assembly_instructions: Vec<AssemblyInstruction> = Vec::new();
 
-    match statement {
-        ASTStatement::Return(expr) => {
-            let return_val = codegen_expression(*expr, &mut instructions);
-            instructions.push(TACKYInstruction::Return(return_val))
-            // instructions.push(Instruction::Mov(return_operand, Operand::Register));
-            // instructions.push(Instruction::Ret);
-        }
-        _ => panic!("Found unknown statement type"),
-    };
-
-    instructions
+    for tacky_instruction in instruction {
+        match tacky_instruction {
+            TACKYInstruction::Unary(unop, src, dst) => {
+                let assembly_src: Operand = assemblygen_operand(src);
+                let assembly_dst: Operand = assemblygen_operand(dst);
+                assembly_instructions.push(AssemblyInstruction::Mov(assembly_src, assembly_dst));
+                let assembly_unop: AssemblyUnaryOperator = assembly_unop(unop);
+                assembly_instructions.push(AssemblyInstruction::Unary(assembly_unop, assembly_dst));
+            },
+            TACKYInstruction::Return(val) => {
+                let operand: Operand = assemblygen_operand(val);
+                let ret_reg: Operand = Operand::Register(Reg::AX);
+                assembly_instructions.push(AssemblyInstruction::Mov(operand, ret_reg));
+                assembly_instructions.push(AssemblyInstruction::Ret);
+            }
+            _ => panic!("Found unknown TACKYInstruction type"),
+        };
+    }
+    assembly_instructions
 }
 
-fn codegen_expression(expression: ASTExpression, instructions: &mut Vec<TACKYInstruction>) -> TACKYVal {
-    let operand = match expression {
-        ASTExpression::Constant(num) => TACKYVal::Constant(num),
-        ASTExpression::UnaryOperation(ast_unop, expr) => {
-        	let src = codegen_expression(expr, instructions);
-        	let dst_name = helper.make_temporary_register();
-        	let dst = TACKYVal::Var(dst_name);
-        	let tacky_unop = convert_unop(ast_unop);
-        	instructions.push(TACKYInstruction::Unary(tacky_unop, src, dst));
-        	dst
-        }
-        _ => panic!("Found unknown expression"),
-    };
-
-    operand
+fn assemblygen_operand(val: TACKYVal) -> Operand {
+    match val {
+        TACKYVal::Constant(num) => {Operand::Imm(num)},
+        TACKYVal::Var(identifier) => {Operand::Pseudo(identifier)}
+    }
 }
 
-fn convert_unop(ast_unop: ASTUnaryOperator) -> TACKYUnaryOperator {
-	match ast_unop {
-		ASTUnaryOperator::Negation => TACKYUnaryOperator::Negate,
-		ASTUnaryOperator::BitwiseComplement => TACKYUnaryOperator::Complement,
-		_ => panic!("Found unimplemented unary operator"),
-	}
+fn assemblygen_unop(unop: TACKYUnaryOperator) -> AssemblyUnaryOperator {
+    match unop {
+        TACKYUnaryOperator::Complement => {AssemblyUnaryOperator::Not},
+        TACKYUnaryOperator::Negate => {AssemblyUnaryOperator::Neg}
+    }
 }
+
+
+
