@@ -2,11 +2,13 @@ mod codeemission;
 mod tackygen;
 mod lexer;
 mod parser;
+mod codegen;
 
 use crate::codeemission::emit_code;
 use crate::tackygen::tackygen;
 use crate::lexer::Lexer;
 use crate::parser::parse_program;
+use crate::codegen::codegen;
 use std::env;
 use std::fs;
 use std::path::Path;
