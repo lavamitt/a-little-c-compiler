@@ -1,6 +1,6 @@
 use crate::parser::{ASTExpression, ASTFunctionDefinition, ASTProgram, ASTStatement, ASTUnaryOperator};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum TACKYVal {
 	Constant(u32),
 	Var(String),
@@ -81,7 +81,7 @@ fn tackygen_expression(expression: ASTExpression, instructions: &mut Vec<TACKYIn
         	let dst_name = helper.make_temporary_register();
         	let dst = TACKYVal::Var(dst_name);
         	let tacky_unop = convert_unop(ast_unop);
-        	instructions.push(TACKYInstruction::Unary(tacky_unop, src, dst));
+        	instructions.push(TACKYInstruction::Unary(tacky_unop, src, dst.clone()));
         	dst
         }
         _ => panic!("Found unknown expression"),
