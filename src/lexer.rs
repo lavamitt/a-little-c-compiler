@@ -15,7 +15,7 @@ pub enum Token {
     Negation,          // -
     BitwiseComplement, // ~
     LogicalNegation,   // !
-    Decrement, // --
+    Decrement,         // --
     Unknown(String),   // To handle unexpected tokens
 }
 
@@ -92,9 +92,9 @@ impl<'a> Lexer<'a> {
                 ')' => Token::CloseParen,
                 ';' => Token::Semicolon,
                 '-' if self.peek_char() == Some(&'-') => {
-                	self.next_char();
-                	Token::Decrement
-                },
+                    self.next_char();
+                    Token::Decrement
+                }
                 '-' => Token::Negation,
                 '~' => Token::BitwiseComplement,
                 '!' => Token::LogicalNegation,

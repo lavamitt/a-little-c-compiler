@@ -104,19 +104,18 @@ where
         Some(Token::OpenParen) => {
             let (expr, mut tokens) = parse_expr(tokens);
             expect_token(tokens.next(), &Token::CloseParen);
-            (
-                expr,
-                tokens,
-            )
+            (expr, tokens)
         }
         _ => panic!("Did not find a way to parse the expression"),
     }
 }
 
-fn expect_token(token: Option<&Token>, expected: &Token)
-{
+fn expect_token(token: Option<&Token>, expected: &Token) {
     match token {
         Some(token) if token == expected => (),
-        _ => panic!("Found unexpectated token: {:?}, expected: {:?}", token, expected),
+        _ => panic!(
+            "Found unexpectated token: {:?}, expected: {:?}",
+            token, expected
+        ),
     }
 }
