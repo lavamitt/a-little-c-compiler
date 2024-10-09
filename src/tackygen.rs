@@ -84,7 +84,7 @@ fn tackygen_expression(
         ASTExpression::Constant(num) => TACKYVal::Constant(num),
         ASTExpression::UnaryOperation(ast_unop, expr) => {
             let src = tackygen_expression(*expr, instructions);
-            let dst_name = helper.make_temporary_register();
+            let dst_name = unsafe { helper.make_temporary_register() }; // we're not running a multithreaded app
             let dst = TACKYVal::Var(dst_name);
             let tacky_unop = convert_unop(ast_unop);
             instructions.push(TACKYInstruction::Unary(tacky_unop, src, dst.clone()));
