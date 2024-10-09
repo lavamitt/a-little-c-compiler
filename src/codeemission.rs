@@ -38,7 +38,7 @@ fn emit_instructions(instructions: &[AssemblyInstruction], assembly: &mut String
                 assembly.push_str("\n");
             }
             AssemblyInstruction::AllocateStack(offset) => {
-                assembly.push_str(&format!("{}subq $<{}>, %rsp\n", INDENT, offset));
+                assembly.push_str(&format!("{}subq ${}, %rsp\n", INDENT, offset));
             }
             AssemblyInstruction::Ret => {
                 assembly.push_str(&format!("{}movq %rbp, %rsp\n", INDENT));
@@ -56,7 +56,7 @@ fn emit_operand(operand: &Operand, assembly: &mut String) {
             format!("${}", num)
         }
         Operand::Register(reg) => reg_to_assembly_str(reg).to_string(),
-        Operand::Stack(offset) => format!("<{}>(%rbp)", offset),
+        Operand::Stack(offset) => format!("{}(%rbp)", offset),
         _ => panic!("Found unknown operand"),
     };
 

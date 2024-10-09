@@ -45,6 +45,8 @@ pub struct AssemblyProgram {
 pub fn codegen(program: TACKYProgram) -> AssemblyProgram {
     let function = codegen_function(program.function);
     let mut assembly_program = AssemblyProgram { function };
+    println!("BEFORE FIXES:");
+    println!("{:?}", assembly_program);
     let offset = replace_pseudo(&mut assembly_program);
     fix_instructions(&mut assembly_program, offset);
     assembly_program
@@ -154,10 +156,14 @@ pub fn fix_instructions(assembly_program: &mut AssemblyProgram, offset: i32) {
                             Operand::Register(Reg::R10),
                         ));
                         fixed_assembly_instructions.push(AssemblyInstruction::Mov(
-                            src.clone(),
                             Operand::Register(Reg::R10),
+                            dst.clone(),
                         ));
+                    } else {
+                        fixed_assembly_instructions.push(instruction.clone());
                     }
+                } else {
+                    fixed_assembly_instructions.push(instruction.clone());
                 }
             }
             _ => fixed_assembly_instructions.push(instruction.clone()),

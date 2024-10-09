@@ -66,7 +66,7 @@ fn parse_args(args: &[String]) -> (Option<Stage>, String) {
 
 fn preprocess_file(input_path: &Path) -> PathBuf {
     let preprocessed_path = input_path.with_extension("i");
-    let status = Command::new("gcc")
+    let status = Command::new("gcc-14")
         .args(&[
             "-E",
             "-P",
@@ -152,27 +152,23 @@ fn run_code_emission(code: &str, input_path: &Path) {
 }
 
 fn run_up_to_stage(code: &str, input_path: &Path, stage: Stage) {
-    run_lexer(code);
-    if stage == Stage::Lexing {
-        return;
+    match stage {
+        Stage::Lexing => {
+            run_lexer(code);
+        }
+        Stage::Parsing => {
+            run_parser(code);
+        }
+        Stage::Tacky => {
+            run_tackygen(code);
+        }
+        Stage::Codegen => {
+            run_codegen(code);
+        }
+        Stage::CodeEmission => {
+            run_code_emission(code, input_path);
+        }
     }
-
-    run_parser(code);
-    if stage == Stage::Parsing {
-        return;
-    }
-
-    run_tackygen(code);
-    if stage == Stage::Tacky {
-        return;
-    }
-
-    run_codegen(code);
-    if stage == Stage::Codegen {
-        return;
-    }
-
-    run_code_emission(code, input_path);
 }
 
 fn run_all_stages(code: &str, input_path: &Path) {

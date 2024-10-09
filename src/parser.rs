@@ -47,12 +47,18 @@ where
         _ => panic!("Function name must be a string literal"),
     };
     expect_token(tokens.next(), &Token::OpenParen);
+    expect_token(tokens.next(), &Token::Identifier("void".to_string()));
     expect_token(tokens.next(), &Token::CloseParen);
     expect_token(tokens.next(), &Token::OpenBrace);
 
     let (statement, mut tokens) = parse_statement(tokens);
 
     expect_token(tokens.next(), &Token::CloseBrace);
+
+    // Check for remaining tokens
+    if tokens.next().is_some() {
+        panic!("Unexpected tokens after function definition");
+    }
 
     (
         ASTFunctionDefinition {
