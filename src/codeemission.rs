@@ -1,4 +1,7 @@
-use crate::codegen::{AssemblyProgram, AssemblyFunctionDefinition, AssemblyInstruction, AssemblyUnaryOperator,  Operand, Reg};
+use crate::codegen::{
+    AssemblyFunctionDefinition, AssemblyInstruction, AssemblyProgram, AssemblyUnaryOperator,
+    Operand, Reg,
+};
 const INDENT: &str = "    ";
 
 pub fn emit_code(program: AssemblyProgram) -> String {
@@ -8,9 +11,7 @@ pub fn emit_code(program: AssemblyProgram) -> String {
     assembly
 }
 
-pub fn add_epilogue (assembly: &mut String) {
-    
-}
+pub fn add_epilogue(assembly: &mut String) {}
 
 fn emit_function(function: &AssemblyFunctionDefinition, assembly: &mut String) {
     assembly.push_str(&format!("{}.globl _{}\n", INDENT, function.name));
@@ -31,7 +32,7 @@ fn emit_instructions(instructions: &[AssemblyInstruction], assembly: &mut String
                 emit_operand(dst, assembly);
                 assembly.push_str("\n");
             }
-            AssemblyInstruction::Unary(unop, operand ) => {
+            AssemblyInstruction::Unary(unop, operand) => {
                 assembly.push_str(&format!("{}{} ", INDENT, unop_to_assembly_str(unop)));
                 emit_operand(operand, assembly);
                 assembly.push_str("\n");
