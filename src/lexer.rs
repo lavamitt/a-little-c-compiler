@@ -16,7 +16,6 @@ pub enum Token {
     BitwiseComplement, // ~
     LogicalNegation,   // !
     Decrement,         // --
-    Unknown(String),   // To handle unexpected tokens
 }
 
 pub fn is_keyword(word: &str) -> Option<Token> {
@@ -70,6 +69,8 @@ impl<'a> Lexer<'a> {
         while let Some(&c) = self.peek_char() {
             if c.is_numeric() {
                 literal.push(self.next_char().unwrap());
+            } else if c.is_alphanumeric() || c == '_' {
+                panic!("Expected integer literal to end with a word boundary but found character: {:?}", c.to_string())
             } else {
                 break;
             }
@@ -77,7 +78,7 @@ impl<'a> Lexer<'a> {
 
         match literal.parse::<u32>() {
             Ok(num) => Token::IntegerLiteral(num),
-            Err(_) => Token::Unknown(literal), // Handle any unexpected cases
+            Err(_) => panic!("Bad identifier: {:?}", literal), // Handle any unexpected cases
         }
     }
 
@@ -101,7 +102,7 @@ impl<'a> Lexer<'a> {
                 c if c.is_whitespace() => continue,
                 c if c.is_alphabetic() => self.lex_identifier(c),
                 c if c.is_numeric() => self.lex_integer_literal(c),
-                c => Token::Unknown(c.to_string()),
+                c => panic!("Found unexpected character: {}", c.to_string()),
             };
             tokens.push(token);
         }
