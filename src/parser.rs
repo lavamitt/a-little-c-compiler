@@ -91,42 +91,6 @@ where
     (ASTStatement::Return(expr), tokens)
 }
 
-// <factor> ::= <int> | <unop> <factor> | "(" <exp> ")"
-fn parse_factor<'a, I>(mut tokens: Peekable<I>) -> (ASTExpression, Peekable<I>)
-where
-    I: Iterator<Item = &'a Token>,
-{
-    let next_token = tokens.peek();
-    match next_token {
-        Some(Token::IntegerLiteral(int)) => {
-            tokens.next();
-            (ASTExpression::Constant(*int), tokens)
-        }
-        Some(token @ (Token::Negation | Token::BitwiseComplement | Token::LogicalNegation)) => {
-            let operator = match token {
-                Token::Negation => ASTUnaryOperator::Negation,
-                Token::BitwiseComplement => ASTUnaryOperator::BitwiseComplement,
-                Token::LogicalNegation => ASTUnaryOperator::LogicalNegation,
-                _ => unreachable!(), // This should never happen
-            };
-
-            tokens.next();
-            let (expr, tokens) = parse_factor(tokens);
-            (
-                ASTExpression::UnaryOperation(operator, Box::new(expr)),
-                tokens,
-            )
-        }
-        Some(Token::OpenParen) => {
-            tokens.next();
-            let (expr, mut tokens) = parse_expr(tokens, 0);
-            expect_token(tokens.next(), &Token::CloseParen);
-            (expr, tokens)
-        }
-        _ => panic!("Did not find a way to parse the expression"),
-    }
-}
-
 // <exp> ::= <factor> | <exp> <binop> <exp>
 fn parse_expr<'a, I>(mut tokens: Peekable<I>, min_precedence: u32) -> (ASTExpression, Peekable<I>)
 where
@@ -172,6 +136,42 @@ fn precedence(binary_op: &ASTBinaryOperator) -> u32 {
         ASTBinaryOperator::Divide => 50,
         ASTBinaryOperator::Remainder => 50,
         _ => unreachable!(), // This should never happen
+    }
+}
+
+// <factor> ::= <int> | <unop> <factor> | "(" <exp> ")"
+fn parse_factor<'a, I>(mut tokens: Peekable<I>) -> (ASTExpression, Peekable<I>)
+where
+    I: Iterator<Item = &'a Token>,
+{
+    let next_token = tokens.peek();
+    match next_token {
+        Some(Token::IntegerLiteral(int)) => {
+            tokens.next();
+            (ASTExpression::Constant(*int), tokens)
+        }
+        Some(token @ (Token::Negation | Token::BitwiseComplement | Token::LogicalNegation)) => {
+            let operator = match token {
+                Token::Negation => ASTUnaryOperator::Negation,
+                Token::BitwiseComplement => ASTUnaryOperator::BitwiseComplement,
+                Token::LogicalNegation => ASTUnaryOperator::LogicalNegation,
+                _ => unreachable!(), // This should never happen
+            };
+
+            tokens.next();
+            let (expr, tokens) = parse_factor(tokens);
+            (
+                ASTExpression::UnaryOperation(operator, Box::new(expr)),
+                tokens,
+            )
+        }
+        Some(Token::OpenParen) => {
+            tokens.next();
+            let (expr, mut tokens) = parse_expr(tokens, 0);
+            expect_token(tokens.next(), &Token::CloseParen);
+            (expr, tokens)
+        }
+        _ => panic!("Did not find a way to parse the expression"),
     }
 }
 
