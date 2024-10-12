@@ -14,14 +14,14 @@ pub enum ASTBinaryOperator {
     Subtract,
     Multiply,
     Divide,
-    Remainder
+    Remainder,
 }
 
 #[derive(Debug)]
 pub enum ASTExpression {
     Constant(u32),
     UnaryOperation(ASTUnaryOperator, Box<ASTExpression>),
-    BinaryOperation(ASTBinaryOperator, Box<ASTExpression>, Box<ASTExpression>)
+    BinaryOperation(ASTBinaryOperator, Box<ASTExpression>, Box<ASTExpression>),
 }
 
 #[derive(Debug)]
@@ -102,7 +102,7 @@ where
             tokens.next();
             (ASTExpression::Constant(*int), tokens)
         }
-        Some(token @ (Token::Negation | Token::BitwiseComplement | Token::LogicalNegation)) => { 
+        Some(token @ (Token::Negation | Token::BitwiseComplement | Token::LogicalNegation)) => {
             let operator = match token {
                 Token::Negation => ASTUnaryOperator::Negation,
                 Token::BitwiseComplement => ASTUnaryOperator::BitwiseComplement,

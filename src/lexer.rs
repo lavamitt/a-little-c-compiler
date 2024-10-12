@@ -103,7 +103,7 @@ impl<'a> Lexer<'a> {
                 '-' if self.peek_char() == Some(&'-') => {
                     self.next_char();
                     Token::Decrement
-                },
+                }
                 '-' => Token::Negation,
                 '~' => Token::BitwiseComplement,
                 '!' => Token::LogicalNegation,
