@@ -1,5 +1,6 @@
 use crate::parser::{
-    ASTExpression, ASTFunctionDefinition, ASTProgram, ASTStatement, ASTUnaryOperator, ASTBinaryOperator
+    ASTBinaryOperator, ASTExpression, ASTFunctionDefinition, ASTProgram, ASTStatement,
+    ASTUnaryOperator,
 };
 
 #[derive(Debug, Clone)]
@@ -99,14 +100,19 @@ fn tackygen_expression(
             let tacky_unop = convert_unop(ast_unop);
             instructions.push(TACKYInstruction::Unary(tacky_unop, src, dst.clone()));
             dst
-        },
+        }
         ASTExpression::BinaryOperation(ast_binop, expr1, expr2) => {
             let src1 = tackygen_expression(*expr1, instructions);
             let src2 = tackygen_expression(*expr2, instructions);
             let dst_name = unsafe { helper.make_temporary_register() };
             let dst = TACKYVal::Var(dst_name);
             let tacky_binop = convert_binop(ast_binop);
-            instructions.push(TACKYInstruction::Binary(tacky_binop, src1, src2, dst.clone()));
+            instructions.push(TACKYInstruction::Binary(
+                tacky_binop,
+                src1,
+                src2,
+                dst.clone(),
+            ));
             dst
         }
         _ => panic!("Found unknown expression"),
