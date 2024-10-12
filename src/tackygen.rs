@@ -1,5 +1,5 @@
 use crate::parser::{
-    ASTExpression, ASTFunctionDefinition, ASTProgram, ASTStatement, ASTUnaryOperator,
+    ASTExpression, ASTFunctionDefinition, ASTProgram, ASTStatement, ASTUnaryOperator, ASTBinaryOperator
 };
 
 #[derive(Debug, Clone)]
@@ -15,8 +15,18 @@ pub enum TACKYUnaryOperator {
 }
 
 #[derive(Debug)]
+pub enum TACKYBinaryOperator {
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+    Remainder,
+}
+
+#[derive(Debug)]
 pub enum TACKYInstruction {
     Unary(TACKYUnaryOperator, TACKYVal, TACKYVal), // src dst
+    Binary(TACKYBinaryOperator, TACKYVal, TACKYVal, TACKYVal), // src1 src2 dst
     Return(TACKYVal),
 }
 
@@ -89,6 +99,15 @@ fn tackygen_expression(
             let tacky_unop = convert_unop(ast_unop);
             instructions.push(TACKYInstruction::Unary(tacky_unop, src, dst.clone()));
             dst
+        },
+        ASTExpression::BinaryOperation(ast_binop, expr1, expr2) => {
+            let src1 = tackygen_expression(*expr1, instructions);
+            let src2 = tackygen_expression(*expr2, instructions);
+            let dst_name = unsafe { helper.make_temporary_register() };
+            let dst = TACKYVal::Var(dst_name);
+            let tacky_binop = convert_binop(ast_binop);
+            instructions.push(TACKYInstruction::Binary(tacky_binop, src1, src2, dst.clone()));
+            dst
         }
         _ => panic!("Found unknown expression"),
     };
@@ -101,5 +120,16 @@ fn convert_unop(ast_unop: ASTUnaryOperator) -> TACKYUnaryOperator {
         ASTUnaryOperator::Negation => TACKYUnaryOperator::Negate,
         ASTUnaryOperator::BitwiseComplement => TACKYUnaryOperator::Complement,
         _ => panic!("Found unimplemented unary operator"),
+    }
+}
+
+fn convert_binop(ast_binop: ASTBinaryOperator) -> TACKYBinaryOperator {
+    match ast_binop {
+        ASTBinaryOperator::Add => TACKYBinaryOperator::Add,
+        ASTBinaryOperator::Subtract => TACKYBinaryOperator::Subtract,
+        ASTBinaryOperator::Multiply => TACKYBinaryOperator::Multiply,
+        ASTBinaryOperator::Divide => TACKYBinaryOperator::Divide,
+        ASTBinaryOperator::Remainder => TACKYBinaryOperator::Remainder,
+        _ => panic!("Found unimplemented binary operator"),
     }
 }
