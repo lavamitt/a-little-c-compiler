@@ -12,6 +12,10 @@ pub enum Token {
     ReturnKeyword,
     Identifier(String),
     IntegerLiteral(u32),
+    Addition,          // +
+    Multiplication,    // *
+    Division,          // /
+    Remainder,         // %
     Negation,          // -
     BitwiseComplement, // ~
     LogicalNegation,   // !
@@ -92,10 +96,14 @@ impl<'a> Lexer<'a> {
                 '(' => Token::OpenParen,
                 ')' => Token::CloseParen,
                 ';' => Token::Semicolon,
+                '+' => Token::Addition,
+                '*' => Token::Multiplication,
+                '/' => Token::Division,
+                '%' => Token::Remainder,
                 '-' if self.peek_char() == Some(&'-') => {
                     self.next_char();
                     Token::Decrement
-                }
+                },
                 '-' => Token::Negation,
                 '~' => Token::BitwiseComplement,
                 '!' => Token::LogicalNegation,

@@ -96,7 +96,7 @@ fn run_lexer(code: &str) -> Vec<lexer::Token> {
 
 fn run_parser(code: &str) -> parser::ASTProgram {
     let tokens = run_lexer(code);
-    let program = parse_program(tokens.iter());
+    let program = parse_program(tokens.iter().peekable());
     println!("############## PARSING DEBUG INFO ##############");
     println!("{:?}", program);
     program
