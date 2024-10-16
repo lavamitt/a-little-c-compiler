@@ -1,5 +1,5 @@
 use crate::codegen::{
-    AssemblyFunctionDefinition, AssemblyInstruction, AssemblyProgram, AssemblyUnaryOperator,
+    AssemblyFunctionDefinition, AssemblyInstruction, AssemblyProgram, AssemblyUnaryOperator, AssemblyBinaryOperator,
     Operand, Reg,
 };
 const INDENT: &str = "    ";
@@ -37,6 +37,21 @@ fn emit_instructions(instructions: &[AssemblyInstruction], assembly: &mut String
                 emit_operand(operand, assembly);
                 assembly.push_str("\n");
             }
+            AssemblyInstruction::Binary(binop, src, dst) => {
+                assembly.push_str(&format!("{}{} ", INDENT, binop_to_assembly_str(binop)));
+                emit_operand(src, assembly);
+                assembly.push_str(", ");
+                emit_operand(dst, assembly);
+                assembly.push_str("\n");
+            }
+            AssemblyInstruction::Idiv(operand) => {
+                assembly.push_str("idivl ");
+                emit_operand(operand, assembly);
+                assembly.push_str("\n");
+            }
+            AssemblyInstruction::Cdq => {
+                assembly.push_str("cdq\n");
+            }
             AssemblyInstruction::AllocateStack(offset) => {
                 assembly.push_str(&format!("{}subq ${}, %rsp\n", INDENT, offset));
             }
@@ -70,9 +85,19 @@ fn unop_to_assembly_str(unop: &AssemblyUnaryOperator) -> &str {
     }
 }
 
+fn binop_to_assembly_str(binop: &AssemblyBinaryOperator) -> &str {
+    match binop {
+        AssemblyBinaryOperator::Add => "addl",
+        AssemblyBinaryOperator::Sub => "subl",
+        AssemblyBinaryOperator::Mult => "imull",
+    }
+}
+
 fn reg_to_assembly_str(reg: &Reg) -> &str {
     match reg {
         Reg::AX => "%eax",
+        Reg::DX => "%edx",
         Reg::R10 => "%r10d",
+        Reg::R11 => "%r11d"
     }
 }
