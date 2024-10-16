@@ -1,6 +1,6 @@
 use crate::codegen::{
-    AssemblyFunctionDefinition, AssemblyInstruction, AssemblyProgram, AssemblyUnaryOperator, AssemblyBinaryOperator,
-    Operand, Reg,
+    AssemblyBinaryOperator, AssemblyFunctionDefinition, AssemblyInstruction, AssemblyProgram,
+    AssemblyUnaryOperator, Operand, Reg,
 };
 const INDENT: &str = "    ";
 
@@ -98,6 +98,6 @@ fn reg_to_assembly_str(reg: &Reg) -> &str {
         Reg::AX => "%eax",
         Reg::DX => "%edx",
         Reg::R10 => "%r10d",
-        Reg::R11 => "%r11d"
+        Reg::R11 => "%r11d",
     }
 }

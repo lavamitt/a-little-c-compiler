@@ -191,7 +191,7 @@ pub fn replace_pseudo(assembly_program: &mut AssemblyProgram) -> i32 {
                     *operand = Operand::Stack(*offset as i32);
                 }
             }
-            AssemblyInstruction::Binary(_,src, dst) => {
+            AssemblyInstruction::Binary(_, src, dst) => {
                 if let Operand::Pseudo(pseudo_identifier) = src {
                     let offset = pseudoregister_map
                         .entry(pseudo_identifier.clone())
@@ -251,7 +251,7 @@ pub fn fix_instructions(assembly_program: &mut AssemblyProgram, offset: i32) {
                 }
                 fixed_assembly_instructions.push(instruction.clone());
             }
-            AssemblyInstruction::Binary(AssemblyBinaryOperator::Mult,src, dst) => {
+            AssemblyInstruction::Binary(AssemblyBinaryOperator::Mult, src, dst) => {
                 if let Operand::Stack(dst_offset) = dst {
                     fixed_assembly_instructions.push(AssemblyInstruction::Mov(
                         dst.clone(),
@@ -270,7 +270,7 @@ pub fn fix_instructions(assembly_program: &mut AssemblyProgram, offset: i32) {
                 }
                 fixed_assembly_instructions.push(instruction.clone());
             }
-            AssemblyInstruction::Binary(binop,src, dst) => {
+            AssemblyInstruction::Binary(binop, src, dst) => {
                 if let Operand::Stack(src_offset) = src {
                     if let Operand::Stack(dst_offset) = dst {
                         fixed_assembly_instructions.push(AssemblyInstruction::Mov(
@@ -293,9 +293,8 @@ pub fn fix_instructions(assembly_program: &mut AssemblyProgram, offset: i32) {
                         operand.clone(),
                         Operand::Register(Reg::R10),
                     ));
-                    fixed_assembly_instructions.push(AssemblyInstruction::Idiv(
-                        Operand::Register(Reg::R10),
-                    ));
+                    fixed_assembly_instructions
+                        .push(AssemblyInstruction::Idiv(Operand::Register(Reg::R10)));
                     continue;
                 }
                 fixed_assembly_instructions.push(instruction.clone());
