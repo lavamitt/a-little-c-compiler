@@ -5,7 +5,7 @@ use std::iter::Peekable;
 pub enum ASTUnaryOperator {
     Negation,
     BitwiseComplement,
-    LogicalNegation,
+    Not,
 }
 
 #[derive(Debug)]
@@ -15,6 +15,14 @@ pub enum ASTBinaryOperator {
     Multiply,
     Divide,
     Remainder,
+    And,
+    Or,
+    Equal,
+    NotEqual,
+    LessThan,
+    LessOrEqual,
+    GreaterThan,
+    GreaterOrEqual
 }
 
 #[derive(Debug)]
@@ -124,17 +132,33 @@ fn token_to_binary_op(token: &Token) -> Option<ASTBinaryOperator> {
         Token::Multiplication => Some(ASTBinaryOperator::Multiply),
         Token::Division => Some(ASTBinaryOperator::Divide),
         Token::Remainder => Some(ASTBinaryOperator::Remainder),
+        Token::LogicalAnd => Some(ASTBinaryOperator::And),
+        Token::LogicalOr => Some(ASTBinaryOperator::Or),
+        Token::EqualTo => Some(ASTBinaryOperator::Equal),
+        Token::NotEqualTo => Some(ASTBinaryOperator::NotEqual),
+        Token::LessThan => Some(ASTBinaryOperator::LessThan),
+        Token::LessThanOrEqualTo => Some(ASTBinaryOperator::LessOrEqual),
+        Token::GreaterThan => Some(ASTBinaryOperator::GreaterThan),
+        Token::GreaterThanOrEqualTo => Some(ASTBinaryOperator::GreaterOrEqual),
         _ => None,
     }
 }
 
 fn precedence(binary_op: &ASTBinaryOperator) -> u32 {
     match binary_op {
-        ASTBinaryOperator::Add => 45,
-        ASTBinaryOperator::Subtract => 45,
         ASTBinaryOperator::Multiply => 50,
         ASTBinaryOperator::Divide => 50,
         ASTBinaryOperator::Remainder => 50,
+        ASTBinaryOperator::Add => 45,
+        ASTBinaryOperator::Subtract => 45,
+        ASTBinaryOperator::LessThan => 35,
+        ASTBinaryOperator::LessOrEqual => 35,
+        ASTBinaryOperator::GreaterThan => 35,
+        ASTBinaryOperator::GreaterOrEqual => 35,
+        ASTBinaryOperator::Equal => 30,
+        ASTBinaryOperator::NotEqual => 30,
+        ASTBinaryOperator::And => 10,
+        ASTBinaryOperator::Or => 5,
         _ => unreachable!(), // This should never happen
     }
 }
@@ -154,7 +178,7 @@ where
             let operator = match token {
                 Token::Negation => ASTUnaryOperator::Negation,
                 Token::BitwiseComplement => ASTUnaryOperator::BitwiseComplement,
-                Token::LogicalNegation => ASTUnaryOperator::LogicalNegation,
+                Token::LogicalNegation => ASTUnaryOperator::Not,
                 _ => unreachable!(), // This should never happen
             };
 
