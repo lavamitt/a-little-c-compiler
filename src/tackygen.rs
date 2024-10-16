@@ -13,6 +13,7 @@ pub enum TACKYVal {
 pub enum TACKYUnaryOperator {
     Complement,
     Negate,
+    Not,
 }
 
 #[derive(Debug)]
@@ -22,13 +23,24 @@ pub enum TACKYBinaryOperator {
     Multiply,
     Divide,
     Remainder,
+    Equal,
+    NotEqual,
+    LessThan,
+    LessOrEqual,
+    GreaterThan,
+    GreaterOrEqual,
 }
 
 #[derive(Debug)]
 pub enum TACKYInstruction {
+    Return(TACKYVal),
     Unary(TACKYUnaryOperator, TACKYVal, TACKYVal), // src dst
     Binary(TACKYBinaryOperator, TACKYVal, TACKYVal, TACKYVal), // src1 src2 dst
-    Return(TACKYVal),
+    Copy(TACKYVal, TACKYVal),                      // src dst
+    Jump(String),
+    JumpIfZero(TACKYVal, String),
+    JumpIfNotZero(TACKYVal, String),
+    Label(String),
 }
 
 #[derive(Debug)]
@@ -44,19 +56,29 @@ pub struct TACKYProgram {
 
 pub struct TACKYHelperFunctions {
     tmp_register_counter: u32,
+    label_counter: u32,
 }
 
 impl TACKYHelperFunctions {
     fn make_temporary_register(&mut self) -> String {
-        // let new_temporary_register = format!("_{}_tmp.{}", function_name, self.tmp_register_counter.to_string());
         let new_temporary_register = format!("tmp.{}", self.tmp_register_counter.to_string());
         self.tmp_register_counter += 1;
         new_temporary_register
+    }
+
+    fn make_labels_at_same_counter(&mut self, prefixes: Vec<String>) -> Vec<String> {
+        let mut new_labels: Vec<String> = Vec::new();
+        for prefix in prefixes {
+            new_labels.push(format!("{}.{}", prefix, self.label_counter.to_string()))
+        }
+        self.label_counter += 1;
+        new_labels
     }
 }
 
 static mut helper: TACKYHelperFunctions = TACKYHelperFunctions {
     tmp_register_counter: 0,
+    label_counter: 0,
 };
 
 pub fn tackygen(program: ASTProgram) -> TACKYProgram {
@@ -101,6 +123,45 @@ fn tackygen_expression(
             instructions.push(TACKYInstruction::Unary(tacky_unop, src, dst.clone()));
             dst
         }
+        ASTExpression::BinaryOperation(ASTBinaryOperator::And, expr1, expr2) => {
+            let src1 = tackygen_expression(*expr1, instructions);
+            let labels = unsafe {
+                helper
+                    .make_labels_at_same_counter(vec!["and_false_".to_string(), "end_".to_string()])
+            };
+            let false_label = &labels[0];
+            let end = &labels[1];
+            instructions.push(TACKYInstruction::JumpIfZero(src1, false_label.clone()));
+            let src2 = tackygen_expression(*expr2, instructions);
+            instructions.push(TACKYInstruction::JumpIfZero(src2, false_label.clone()));
+            let dst_name = unsafe { helper.make_temporary_register() };
+            let dst = TACKYVal::Var(dst_name);
+            instructions.push(TACKYInstruction::Copy(TACKYVal::Constant(1), dst.clone()));
+            instructions.push(TACKYInstruction::Jump(end.clone()));
+            instructions.push(TACKYInstruction::Label(false_label.clone()));
+            instructions.push(TACKYInstruction::Copy(TACKYVal::Constant(0), dst.clone()));
+            instructions.push(TACKYInstruction::Label(end.clone()));
+            dst
+        }
+        ASTExpression::BinaryOperation(ASTBinaryOperator::Or, expr1, expr2) => {
+            let src1 = tackygen_expression(*expr1, instructions);
+            let labels = unsafe {
+                helper.make_labels_at_same_counter(vec!["or_true_".to_string(), "end_".to_string()])
+            };
+            let true_label = &labels[0];
+            let end = &labels[1];
+            instructions.push(TACKYInstruction::JumpIfNotZero(src1, true_label.clone()));
+            let src2 = tackygen_expression(*expr2, instructions);
+            instructions.push(TACKYInstruction::JumpIfNotZero(src2, true_label.clone()));
+            let dst_name = unsafe { helper.make_temporary_register() };
+            let dst = TACKYVal::Var(dst_name);
+            instructions.push(TACKYInstruction::Copy(TACKYVal::Constant(0), dst.clone()));
+            instructions.push(TACKYInstruction::Jump(end.clone()));
+            instructions.push(TACKYInstruction::Label(true_label.clone()));
+            instructions.push(TACKYInstruction::Copy(TACKYVal::Constant(1), dst.clone()));
+            instructions.push(TACKYInstruction::Label(end.clone()));
+            dst
+        }
         ASTExpression::BinaryOperation(ast_binop, expr1, expr2) => {
             let src1 = tackygen_expression(*expr1, instructions);
             let src2 = tackygen_expression(*expr2, instructions);
@@ -125,6 +186,7 @@ fn convert_unop(ast_unop: ASTUnaryOperator) -> TACKYUnaryOperator {
     match ast_unop {
         ASTUnaryOperator::Negation => TACKYUnaryOperator::Negate,
         ASTUnaryOperator::BitwiseComplement => TACKYUnaryOperator::Complement,
+        ASTUnaryOperator::Not => TACKYUnaryOperator::Not,
         _ => panic!("Found unimplemented unary operator"),
     }
 }
@@ -136,6 +198,12 @@ fn convert_binop(ast_binop: ASTBinaryOperator) -> TACKYBinaryOperator {
         ASTBinaryOperator::Multiply => TACKYBinaryOperator::Multiply,
         ASTBinaryOperator::Divide => TACKYBinaryOperator::Divide,
         ASTBinaryOperator::Remainder => TACKYBinaryOperator::Remainder,
+        ASTBinaryOperator::Equal => TACKYBinaryOperator::Equal,
+        ASTBinaryOperator::NotEqual => TACKYBinaryOperator::NotEqual,
+        ASTBinaryOperator::LessThan => TACKYBinaryOperator::LessThan,
+        ASTBinaryOperator::LessOrEqual => TACKYBinaryOperator::LessOrEqual,
+        ASTBinaryOperator::GreaterThan => TACKYBinaryOperator::GreaterThan,
+        ASTBinaryOperator::GreaterOrEqual => TACKYBinaryOperator::GreaterOrEqual,
         _ => panic!("Found unimplemented binary operator"),
     }
 }

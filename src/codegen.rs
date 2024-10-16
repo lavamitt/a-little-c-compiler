@@ -150,6 +150,7 @@ fn codegen_unop(unop: &TACKYUnaryOperator) -> AssemblyUnaryOperator {
     match unop {
         TACKYUnaryOperator::Complement => AssemblyUnaryOperator::Not,
         TACKYUnaryOperator::Negate => AssemblyUnaryOperator::Neg,
+        TACKYUnaryOperator::Not => AssemblyUnaryOperator::Not, // fix this TODO
     }
 }
 
