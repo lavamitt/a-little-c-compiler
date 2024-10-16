@@ -1,5 +1,6 @@
 use crate::tackygen::{
-    TACKYFunctionDefinition, TACKYInstruction, TACKYProgram, TACKYUnaryOperator, TACKYVal, TACKYBinaryOperator
+    TACKYBinaryOperator, TACKYFunctionDefinition, TACKYInstruction, TACKYProgram,
+    TACKYUnaryOperator, TACKYVal,
 };
 use std::collections::HashMap;
 
@@ -8,7 +9,7 @@ pub enum Reg {
     AX,
     DX,
     R10,
-    R11
+    R11,
 }
 
 #[derive(Debug, Clone)]
@@ -38,7 +39,7 @@ pub enum AssemblyInstruction {
     Unary(AssemblyUnaryOperator, Operand),
     Binary(AssemblyBinaryOperator, Operand, Operand),
     Idiv(Operand), // stores quotient in AX and remainder in DX, needs dividend to be across DX AX.
-    Cdq, // sign extends AX into DX
+    Cdq,           // sign extends AX into DX
     AllocateStack(u32), // ex: subq $n, %rsp
     Ret,
 }
@@ -89,20 +90,24 @@ fn codegen_body(instructions: &Vec<TACKYInstruction>) -> Vec<AssemblyInstruction
                 let src2: Operand = codegen_operand(src2);
                 let dst: Operand = codegen_operand(dst);
 
-                assembly_instructions.push(AssemblyInstruction::Mov(src1, Operand::Register(Reg::AX)));
+                assembly_instructions
+                    .push(AssemblyInstruction::Mov(src1, Operand::Register(Reg::AX)));
                 assembly_instructions.push(AssemblyInstruction::Cdq);
                 assembly_instructions.push(AssemblyInstruction::Idiv(src2));
-                assembly_instructions.push(AssemblyInstruction::Mov(Operand::Register(Reg::AX), dst));
+                assembly_instructions
+                    .push(AssemblyInstruction::Mov(Operand::Register(Reg::AX), dst));
             }
             TACKYInstruction::Binary(TACKYBinaryOperator::Remainder, src1, src2, dst) => {
                 let src1: Operand = codegen_operand(src1);
                 let src2: Operand = codegen_operand(src2);
                 let dst: Operand = codegen_operand(dst);
 
-                assembly_instructions.push(AssemblyInstruction::Mov(src1, Operand::Register(Reg::AX)));
+                assembly_instructions
+                    .push(AssemblyInstruction::Mov(src1, Operand::Register(Reg::AX)));
                 assembly_instructions.push(AssemblyInstruction::Cdq);
                 assembly_instructions.push(AssemblyInstruction::Idiv(src2));
-                assembly_instructions.push(AssemblyInstruction::Mov(Operand::Register(Reg::DX), dst));
+                assembly_instructions
+                    .push(AssemblyInstruction::Mov(Operand::Register(Reg::DX), dst));
             }
             TACKYInstruction::Binary(binop, src1, src2, dst) => {
                 let src1: Operand = codegen_operand(src1);
@@ -112,7 +117,10 @@ fn codegen_body(instructions: &Vec<TACKYInstruction>) -> Vec<AssemblyInstruction
                     TACKYBinaryOperator::Add => AssemblyBinaryOperator::Add,
                     TACKYBinaryOperator::Subtract => AssemblyBinaryOperator::Sub,
                     TACKYBinaryOperator::Multiply => AssemblyBinaryOperator::Mult,
-                    _ => panic!("No instruction for converting TACKY to Assembly for binary operator: {:?}", binop),
+                    _ => panic!(
+                        "No instruction for converting TACKY to Assembly for binary operator: {:?}",
+                        binop
+                    ),
                 };
                 assembly_instructions.push(AssemblyInstruction::Mov(src1, dst.clone()));
                 assembly_instructions.push(AssemblyInstruction::Binary(binop, src2, dst));
