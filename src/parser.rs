@@ -22,7 +22,7 @@ pub enum ASTBinaryOperator {
     LessThan,
     LessOrEqual,
     GreaterThan,
-    GreaterOrEqual
+    GreaterOrEqual,
 }
 
 #[derive(Debug)]
