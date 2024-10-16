@@ -12,14 +12,22 @@ pub enum Token {
     ReturnKeyword,
     Identifier(String),
     IntegerLiteral(u32),
-    Addition,          // +
-    Multiplication,    // *
-    Division,          // /
-    Remainder,         // %
-    Negation,          // -
-    BitwiseComplement, // ~
-    LogicalNegation,   // !
-    Decrement,         // --
+    Addition,             // +
+    Multiplication,       // *
+    Division,             // /
+    Remainder,            // %
+    Negation,             // -
+    Decrement,            // --
+    BitwiseComplement,    // ~
+    LogicalNegation,      // !
+    LogicalAnd,           // &&
+    LogicalOr,            // ||
+    EqualTo,              // ==
+    NotEqualTo,           // !=
+    LessThan,             // <
+    GreaterThan,          // >
+    LessThanOrEqualTo,    // <=
+    GreaterThanOrEqualTo, // >=
 }
 
 pub fn is_keyword(word: &str) -> Option<Token> {
@@ -106,7 +114,33 @@ impl<'a> Lexer<'a> {
                 }
                 '-' => Token::Negation,
                 '~' => Token::BitwiseComplement,
+                '&' if self.peek_char() == Some(&'&') => {
+                    self.next_char();
+                    Token::LogicalAnd
+                }
+                '|' if self.peek_char() == Some(&'|') => {
+                    self.next_char();
+                    Token::LogicalOr
+                }
+                '=' if self.peek_char() == Some(&'=') => {
+                    self.next_char();
+                    Token::EqualTo
+                }
+                '!' if self.peek_char() == Some(&'=') => {
+                    self.next_char();
+                    Token::NotEqualTo
+                }
                 '!' => Token::LogicalNegation,
+                '<' if self.peek_char() == Some(&'=') => {
+                    self.next_char();
+                    Token::LessThanOrEqualTo
+                }
+                '<' => Token::LessThan,
+                '>' if self.peek_char() == Some(&'=') => {
+                    self.next_char();
+                    Token::GreaterThanOrEqualTo
+                }
+                '>' => Token::GreaterThan,
                 c if c.is_whitespace() => continue,
                 c if c.is_alphabetic() => self.lex_identifier(c),
                 c if c.is_numeric() => self.lex_integer_literal(c),
