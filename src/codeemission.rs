@@ -80,8 +80,9 @@ fn emit_operand(operand: &Operand, assembly: &mut String) {
 
 fn unop_to_assembly_str(unop: &AssemblyUnaryOperator) -> &str {
     match unop {
-        AssemblyUnaryOperator::Not => "notl",
+        AssemblyUnaryOperator::Complement => "notl",
         AssemblyUnaryOperator::Neg => "negl",
+        AssemblyUnaryOperator::Not => "notl", // FIX 
     }
 }
 
