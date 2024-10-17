@@ -82,7 +82,7 @@ fn unop_to_assembly_str(unop: &AssemblyUnaryOperator) -> &str {
     match unop {
         AssemblyUnaryOperator::Complement => "notl",
         AssemblyUnaryOperator::Neg => "negl",
-        AssemblyUnaryOperator::Not => "notl", // FIX 
+        AssemblyUnaryOperator::Not => "notl", // FIX
     }
 }
 

@@ -19,7 +19,7 @@ pub enum ConditionalCode {
     G,
     GE,
     L,
-    LE
+    LE,
 }
 
 #[derive(Debug, Clone)]
@@ -51,7 +51,7 @@ pub enum AssemblyInstruction {
     Binary(AssemblyBinaryOperator, Operand, Operand),
     Idiv(Operand), // stores quotient in AX and remainder in DX, needs dividend to be across DX AX.
     Cmp(Operand, Operand),
-    Cdq,           // sign extends AX into DX
+    Cdq, // sign extends AX into DX
     Jmp(String),
     JmpCC(ConditionalCode, String),
     SetCC(ConditionalCode, Operand),
@@ -100,13 +100,13 @@ fn codegen_body(instructions: &Vec<TACKYInstruction>) -> Vec<AssemblyInstruction
                 let dst: Operand = codegen_operand(dst);
                 assembly_instructions.push(AssemblyInstruction::Cmp(Operand::Imm(0), src.clone()));
                 assembly_instructions.push(AssemblyInstruction::Mov(Operand::Imm(0), dst.clone()));
-                assembly_instructions.push(AssemblyInstruction::SetCC(ConditionalCode::E, dst.clone()));
+                assembly_instructions
+                    .push(AssemblyInstruction::SetCC(ConditionalCode::E, dst.clone()));
             }
             TACKYInstruction::Unary(unop, src, dst) => {
                 let src: Operand = codegen_operand(src);
                 let dst: Operand = codegen_operand(dst);
-                assembly_instructions
-                    .push(AssemblyInstruction::Mov(src, dst.clone()));
+                assembly_instructions.push(AssemblyInstruction::Mov(src, dst.clone()));
                 let assembly_unop: AssemblyUnaryOperator = codegen_unop(unop);
                 assembly_instructions.push(AssemblyInstruction::Unary(assembly_unop, dst.clone()));
             }
@@ -139,14 +139,23 @@ fn codegen_body(instructions: &Vec<TACKYInstruction>) -> Vec<AssemblyInstruction
                 let src2: Operand = codegen_operand(src2);
                 let dst: Operand = codegen_operand(dst);
                 let was_comparative_binop = match binop {
-                    TACKYBinaryOperator::Equal | TACKYBinaryOperator::NotEqual | TACKYBinaryOperator::GreaterThan | TACKYBinaryOperator::GreaterOrEqual
-                    | TACKYBinaryOperator::LessThan | TACKYBinaryOperator::LessOrEqual => {
-                        assembly_instructions.push(AssemblyInstruction::Cmp(src2.clone(), src1.clone()));
-                        assembly_instructions.push(AssemblyInstruction::Mov(Operand::Imm(0), dst.clone()));
-                        assembly_instructions.push(AssemblyInstruction::SetCC(codegen_comparative_binop(binop), dst.clone()));
+                    TACKYBinaryOperator::Equal
+                    | TACKYBinaryOperator::NotEqual
+                    | TACKYBinaryOperator::GreaterThan
+                    | TACKYBinaryOperator::GreaterOrEqual
+                    | TACKYBinaryOperator::LessThan
+                    | TACKYBinaryOperator::LessOrEqual => {
+                        assembly_instructions
+                            .push(AssemblyInstruction::Cmp(src2.clone(), src1.clone()));
+                        assembly_instructions
+                            .push(AssemblyInstruction::Mov(Operand::Imm(0), dst.clone()));
+                        assembly_instructions.push(AssemblyInstruction::SetCC(
+                            codegen_comparative_binop(binop),
+                            dst.clone(),
+                        ));
                         true
                     }
-                    _ => false
+                    _ => false,
                 };
 
                 if !was_comparative_binop {
@@ -160,19 +169,31 @@ fn codegen_body(instructions: &Vec<TACKYInstruction>) -> Vec<AssemblyInstruction
                         ),
                     };
                     assembly_instructions.push(AssemblyInstruction::Mov(src1.clone(), dst.clone()));
-                    assembly_instructions.push(AssemblyInstruction::Binary(binop, src2.clone(), dst.clone()));
+                    assembly_instructions.push(AssemblyInstruction::Binary(
+                        binop,
+                        src2.clone(),
+                        dst.clone(),
+                    ));
                 }
             }
-            TACKYInstruction::Jump(target) => assembly_instructions.push(AssemblyInstruction::Jmp(target.clone())),
-            TACKYInstruction::JumpIfZero(val, target ) => {
-                let val = codegen_operand(val);
-                assembly_instructions.push(AssemblyInstruction::Cmp(Operand::Imm(0), val));
-                assembly_instructions.push(AssemblyInstruction::JmpCC(ConditionalCode::E, target.clone()));
+            TACKYInstruction::Jump(target) => {
+                assembly_instructions.push(AssemblyInstruction::Jmp(target.clone()))
             }
-            TACKYInstruction::JumpIfNotZero(val, target ) => {
+            TACKYInstruction::JumpIfZero(val, target) => {
                 let val = codegen_operand(val);
                 assembly_instructions.push(AssemblyInstruction::Cmp(Operand::Imm(0), val));
-                assembly_instructions.push(AssemblyInstruction::JmpCC(ConditionalCode::NE, target.clone()));
+                assembly_instructions.push(AssemblyInstruction::JmpCC(
+                    ConditionalCode::E,
+                    target.clone(),
+                ));
+            }
+            TACKYInstruction::JumpIfNotZero(val, target) => {
+                let val = codegen_operand(val);
+                assembly_instructions.push(AssemblyInstruction::Cmp(Operand::Imm(0), val));
+                assembly_instructions.push(AssemblyInstruction::JmpCC(
+                    ConditionalCode::NE,
+                    target.clone(),
+                ));
             }
             TACKYInstruction::Copy(src, dst) => {
                 let src: Operand = codegen_operand(src);
@@ -209,7 +230,7 @@ fn codegen_unop(unop: &TACKYUnaryOperator) -> AssemblyUnaryOperator {
     }
 }
 
-fn codegen_comparative_binop (binop: &TACKYBinaryOperator) -> ConditionalCode {
+fn codegen_comparative_binop(binop: &TACKYBinaryOperator) -> ConditionalCode {
     match binop {
         TACKYBinaryOperator::Equal => ConditionalCode::E,
         TACKYBinaryOperator::NotEqual => ConditionalCode::NE,
@@ -231,25 +252,61 @@ pub fn replace_pseudo(assembly_program: &mut AssemblyProgram) -> i32 {
     for instruction in &mut assembly_program.function.instructions {
         match instruction {
             AssemblyInstruction::Mov(src, dst) => {
-                maybe_replace_identifier_with_register(src, &mut pseudoregister_map, &mut stack_offset);
-                maybe_replace_identifier_with_register(dst, &mut pseudoregister_map, &mut stack_offset);
+                maybe_replace_identifier_with_register(
+                    src,
+                    &mut pseudoregister_map,
+                    &mut stack_offset,
+                );
+                maybe_replace_identifier_with_register(
+                    dst,
+                    &mut pseudoregister_map,
+                    &mut stack_offset,
+                );
             }
             AssemblyInstruction::Unary(_, operand) => {
-                maybe_replace_identifier_with_register(operand, &mut pseudoregister_map, &mut stack_offset);
+                maybe_replace_identifier_with_register(
+                    operand,
+                    &mut pseudoregister_map,
+                    &mut stack_offset,
+                );
             }
             AssemblyInstruction::Binary(_, src, dst) => {
-                maybe_replace_identifier_with_register(src, &mut pseudoregister_map, &mut stack_offset);
-                maybe_replace_identifier_with_register(dst, &mut pseudoregister_map, &mut stack_offset);
+                maybe_replace_identifier_with_register(
+                    src,
+                    &mut pseudoregister_map,
+                    &mut stack_offset,
+                );
+                maybe_replace_identifier_with_register(
+                    dst,
+                    &mut pseudoregister_map,
+                    &mut stack_offset,
+                );
             }
             AssemblyInstruction::Idiv(operand) => {
-                maybe_replace_identifier_with_register(operand, &mut pseudoregister_map, &mut stack_offset);
+                maybe_replace_identifier_with_register(
+                    operand,
+                    &mut pseudoregister_map,
+                    &mut stack_offset,
+                );
             }
             AssemblyInstruction::Cmp(src, dst) => {
-                maybe_replace_identifier_with_register(src, &mut pseudoregister_map, &mut stack_offset);
-                maybe_replace_identifier_with_register(dst, &mut pseudoregister_map, &mut stack_offset);
+                maybe_replace_identifier_with_register(
+                    src,
+                    &mut pseudoregister_map,
+                    &mut stack_offset,
+                );
+                maybe_replace_identifier_with_register(
+                    dst,
+                    &mut pseudoregister_map,
+                    &mut stack_offset,
+                );
             }
             AssemblyInstruction::SetCC(_, operand) => {
-                maybe_replace_identifier_with_register(operand, &mut pseudoregister_map, &mut stack_offset);
+                maybe_replace_identifier_with_register(
+                    operand,
+                    &mut pseudoregister_map,
+                    &mut stack_offset,
+                );
             }
             _ => {}
         }
@@ -257,7 +314,11 @@ pub fn replace_pseudo(assembly_program: &mut AssemblyProgram) -> i32 {
     stack_offset
 }
 
-pub fn maybe_replace_identifier_with_register(operand: &mut Operand, pseudoregister_map: &mut HashMap<String, i32>, curr_stack_offset: &mut i32) {
+pub fn maybe_replace_identifier_with_register(
+    operand: &mut Operand,
+    pseudoregister_map: &mut HashMap<String, i32>,
+    curr_stack_offset: &mut i32,
+) {
     if let Operand::Pseudo(pseudo_identifier) = operand {
         let offset = pseudoregister_map
             .entry(pseudo_identifier.clone())
@@ -380,7 +441,10 @@ pub fn fix_instructions(assembly_program: &mut AssemblyProgram, offset: i32) {
                         dst.clone(),
                         Operand::Register(Reg::R11),
                     ));
-                    fixed_assembly_instructions.push(AssemblyInstruction::Cmp(src.clone(), Operand::Register(Reg::R11)));
+                    fixed_assembly_instructions.push(AssemblyInstruction::Cmp(
+                        src.clone(),
+                        Operand::Register(Reg::R11),
+                    ));
                     continue;
                 }
                 fixed_assembly_instructions.push(instruction.clone());
