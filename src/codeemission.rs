@@ -1,5 +1,6 @@
 use crate::codegen::{
-    AssemblyBinaryOperator, AssemblyFunctionDefinition, AssemblyInstruction, AssemblyProgram, AssemblyUnaryOperator, ConditionalCode, Operand, Reg
+    AssemblyBinaryOperator, AssemblyFunctionDefinition, AssemblyInstruction, AssemblyProgram,
+    AssemblyUnaryOperator, ConditionalCode, Operand, Reg,
 };
 const INDENT: &str = "    ";
 
@@ -91,7 +92,7 @@ fn emit_instructions(instructions: &[AssemblyInstruction], assembly: &mut String
 
 pub enum OperandNumBytes {
     One,
-    Four
+    Four,
 }
 
 fn emit_operand(operand: &Operand, assembly: &mut String, num_bytes: OperandNumBytes) {
@@ -125,30 +126,22 @@ fn binop_to_assembly_str(binop: &AssemblyBinaryOperator) -> &str {
 
 fn reg_to_assembly_str(reg: &Reg, num_bytes: OperandNumBytes) -> &str {
     match reg {
-        Reg::AX => {
-            match num_bytes {
-                OperandNumBytes::Four => "%eax",
-                OperandNumBytes::One => "%al",
-            }
-        }
-        Reg::DX => {
-            match num_bytes {
-                OperandNumBytes::Four => "%edx",
-                OperandNumBytes::One => "%dl",
-            }
-        }
-        Reg::R10 => {
-            match num_bytes {
-                OperandNumBytes::Four => "%r10d",
-                OperandNumBytes::One => "%r10b",
-            }
-        }
-        Reg::R11 => {
-            match num_bytes {
-                OperandNumBytes::Four => "%r11d",
-                OperandNumBytes::One => "%r11b",
-            }
-        }
+        Reg::AX => match num_bytes {
+            OperandNumBytes::Four => "%eax",
+            OperandNumBytes::One => "%al",
+        },
+        Reg::DX => match num_bytes {
+            OperandNumBytes::Four => "%edx",
+            OperandNumBytes::One => "%dl",
+        },
+        Reg::R10 => match num_bytes {
+            OperandNumBytes::Four => "%r10d",
+            OperandNumBytes::One => "%r10b",
+        },
+        Reg::R11 => match num_bytes {
+            OperandNumBytes::Four => "%r11d",
+            OperandNumBytes::One => "%r11b",
+        },
     }
 }
 
