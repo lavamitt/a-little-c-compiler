@@ -12,6 +12,7 @@ pub enum Token {
     ReturnKeyword,
     Identifier(String),
     IntegerLiteral(u32),
+    Equal,                // =
     Addition,             // +
     Multiplication,       // *
     Division,             // /
@@ -126,6 +127,7 @@ impl<'a> Lexer<'a> {
                     self.next_char();
                     Token::EqualTo
                 }
+                '=' => Token::Equal,
                 '!' if self.peek_char() == Some(&'=') => {
                     self.next_char();
                     Token::NotEqualTo

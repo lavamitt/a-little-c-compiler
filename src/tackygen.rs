@@ -198,7 +198,7 @@ fn convert_binop(ast_binop: ASTBinaryOperator) -> TACKYBinaryOperator {
         ASTBinaryOperator::Multiply => TACKYBinaryOperator::Multiply,
         ASTBinaryOperator::Divide => TACKYBinaryOperator::Divide,
         ASTBinaryOperator::Remainder => TACKYBinaryOperator::Remainder,
-        ASTBinaryOperator::Equal => TACKYBinaryOperator::Equal,
+        ASTBinaryOperator::IsEqual => TACKYBinaryOperator::Equal,
         ASTBinaryOperator::NotEqual => TACKYBinaryOperator::NotEqual,
         ASTBinaryOperator::LessThan => TACKYBinaryOperator::LessThan,
         ASTBinaryOperator::LessOrEqual => TACKYBinaryOperator::LessOrEqual,
