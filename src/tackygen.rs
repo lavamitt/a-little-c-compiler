@@ -55,8 +55,8 @@ pub struct TACKYProgram {
 }
 
 pub struct TACKYHelperFunctions {
-    tmp_register_counter: u32,
-    label_counter: u32,
+    pub(crate) tmp_register_counter: u32,
+    pub(crate) label_counter: u32,
 }
 
 impl TACKYHelperFunctions {
@@ -76,29 +76,40 @@ impl TACKYHelperFunctions {
     }
 }
 
-static mut helper: TACKYHelperFunctions = TACKYHelperFunctions {
-    tmp_register_counter: 0,
-    label_counter: 0,
-};
+pub struct TACKYContext {
+    helper: TACKYHelperFunctions
+}
 
-pub fn tackygen(program: ASTProgram) -> TACKYProgram {
-    let function = tackygen_function(program.function);
+impl TACKYContext {
+    pub fn new() -> Self {
+        Self {
+            helper: TACKYHelperFunctions {
+                tmp_register_counter: 0,
+                label_counter: 0,
+            }
+        }
+    }
+}
+
+
+pub fn tackygen(context: &mut TACKYContext, program: ASTProgram) -> TACKYProgram {
+    let function = tackygen_function(context, program.function);
     TACKYProgram { function }
 }
 
-fn tackygen_function(function: ASTFunctionDefinition) -> TACKYFunctionDefinition {
+fn tackygen_function(context: &mut TACKYContext, function: ASTFunctionDefinition) -> TACKYFunctionDefinition {
     let name = function.name;
-    let instructions = tackygen_body(function.body);
+    let instructions = tackygen_body(context, function.body);
 
     TACKYFunctionDefinition { name, instructions }
 }
 
-fn tackygen_body(statement: ASTStatement) -> Vec<TACKYInstruction> {
+fn tackygen_body(context: &mut TACKYContext, statement: ASTStatement) -> Vec<TACKYInstruction> {
     let mut instructions: Vec<TACKYInstruction> = Vec::new();
 
     match statement {
         ASTStatement::Return(expr) => {
-            let return_val = tackygen_expression(expr, &mut instructions);
+            let return_val = tackygen_expression(context, expr, &mut instructions);
             instructions.push(TACKYInstruction::Return(return_val))
             // instructions.push(Instruction::Mov(return_operand, Operand::Register));
             // instructions.push(Instruction::Ret);
@@ -110,31 +121,32 @@ fn tackygen_body(statement: ASTStatement) -> Vec<TACKYInstruction> {
 }
 
 fn tackygen_expression(
+    context: &mut TACKYContext,
     expression: ASTExpression,
     instructions: &mut Vec<TACKYInstruction>,
 ) -> TACKYVal {
     let operand = match expression {
         ASTExpression::Constant(num) => TACKYVal::Constant(num),
         ASTExpression::UnaryOperation(ast_unop, expr) => {
-            let src = tackygen_expression(*expr, instructions);
-            let dst_name = unsafe { helper.make_temporary_register() }; // we're not running a multithreaded app
+            let src = tackygen_expression(context, *expr, instructions);
+            let dst_name = unsafe { context.helper.make_temporary_register() }; // we're not running a multithreaded app
             let dst = TACKYVal::Var(dst_name);
             let tacky_unop = convert_unop(ast_unop);
             instructions.push(TACKYInstruction::Unary(tacky_unop, src, dst.clone()));
             dst
         }
         ASTExpression::BinaryOperation(ASTBinaryOperator::And, expr1, expr2) => {
-            let src1 = tackygen_expression(*expr1, instructions);
+            let src1 = tackygen_expression(context, *expr1, instructions);
             let labels = unsafe {
-                helper
+                context.helper
                     .make_labels_at_same_counter(vec!["and_false_".to_string(), "end_".to_string()])
             };
             let false_label = &labels[0];
             let end = &labels[1];
             instructions.push(TACKYInstruction::JumpIfZero(src1, false_label.clone()));
-            let src2 = tackygen_expression(*expr2, instructions);
+            let src2 = tackygen_expression(context, *expr2, instructions);
             instructions.push(TACKYInstruction::JumpIfZero(src2, false_label.clone()));
-            let dst_name = unsafe { helper.make_temporary_register() };
+            let dst_name = unsafe { context.helper.make_temporary_register() };
             let dst = TACKYVal::Var(dst_name);
             instructions.push(TACKYInstruction::Copy(TACKYVal::Constant(1), dst.clone()));
             instructions.push(TACKYInstruction::Jump(end.clone()));
@@ -144,16 +156,14 @@ fn tackygen_expression(
             dst
         }
         ASTExpression::BinaryOperation(ASTBinaryOperator::Or, expr1, expr2) => {
-            let src1 = tackygen_expression(*expr1, instructions);
-            let labels = unsafe {
-                helper.make_labels_at_same_counter(vec!["or_true_".to_string(), "end_".to_string()])
-            };
+            let src1 = tackygen_expression(context, *expr1, instructions);
+            let labels = context.helper.make_labels_at_same_counter(vec!["or_true_".to_string(), "end_".to_string()])
             let true_label = &labels[0];
             let end = &labels[1];
             instructions.push(TACKYInstruction::JumpIfNotZero(src1, true_label.clone()));
-            let src2 = tackygen_expression(*expr2, instructions);
+            let src2 = tackygen_expression(context, *expr2, instructions);
             instructions.push(TACKYInstruction::JumpIfNotZero(src2, true_label.clone()));
-            let dst_name = unsafe { helper.make_temporary_register() };
+            let dst_name = context.helper.make_temporary_register();
             let dst = TACKYVal::Var(dst_name);
             instructions.push(TACKYInstruction::Copy(TACKYVal::Constant(0), dst.clone()));
             instructions.push(TACKYInstruction::Jump(end.clone()));
@@ -163,9 +173,9 @@ fn tackygen_expression(
             dst
         }
         ASTExpression::BinaryOperation(ast_binop, expr1, expr2) => {
-            let src1 = tackygen_expression(*expr1, instructions);
-            let src2 = tackygen_expression(*expr2, instructions);
-            let dst_name = unsafe { helper.make_temporary_register() };
+            let src1 = tackygen_expression(context, *expr1, instructions);
+            let src2 = tackygen_expression(context, *expr2, instructions);
+            let dst_name = context.helper.make_temporary_register();
             let dst = TACKYVal::Var(dst_name);
             let tacky_binop = convert_binop(ast_binop);
             instructions.push(TACKYInstruction::Binary(

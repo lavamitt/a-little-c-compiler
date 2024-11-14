@@ -95,10 +95,10 @@ where
             break;
         }
     
-        let (next_item, new_tokens) = parse_block_item(tokens);
+        let (next_item, rest_of_tokens) = parse_block_item(tokens);
     
         function_body.push(next_item);
-        tokens = new_tokens;
+        tokens = rest_of_tokens;
     }
 
     expect_token(tokens.next(), &Token::CloseBrace);
@@ -305,7 +305,7 @@ fn expect_token(token: Option<&Token>, expected: &Token) {
     match token {
         Some(token) if token == expected => (),
         _ => panic!(
-            "Found unexpectated token: {:?}, expected: {:?}",
+            "Found unexpected token: {:?}, expected: {:?}",
             token, expected
         ),
     }

@@ -9,6 +9,7 @@ use crate::codegen::codegen;
 use crate::lexer::Lexer;
 use crate::parser::parse_program;
 use crate::tackygen::tackygen;
+use crate::tackygen::TACKYContext;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -104,7 +105,8 @@ fn run_parser(code: &str) -> parser::ASTProgram {
 
 fn run_tackygen(code: &str) -> tackygen::TACKYProgram {
     let program = run_parser(code);
-    let tackygen = tackygen(program);
+    let mut context = TACKYContext::new();
+    let tackygen = tackygen(&mut context, program);
     println!("############## TACKYGEN DEBUG INFO ##############");
     println!("{:?}", tackygen);
     tackygen
