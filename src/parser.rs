@@ -23,7 +23,7 @@ pub enum ASTBinaryOperator {
     LessOrEqual,
     GreaterThan,
     GreaterOrEqual,
-    Equal
+    Equal,
 }
 
 #[derive(Debug)]
@@ -45,7 +45,7 @@ pub enum ASTStatement {
 #[derive(Debug)]
 pub struct ASTVariableDeclaration {
     pub name: String,
-    pub init: Option<ASTExpression>
+    pub init: Option<ASTExpression>,
 }
 
 #[derive(Debug)]
@@ -94,9 +94,9 @@ where
         if token == &&Token::CloseBrace {
             break;
         }
-    
+
         let (next_item, rest_of_tokens) = parse_block_item(tokens);
-    
+
         function_body.push(next_item);
         tokens = rest_of_tokens;
     }
@@ -145,19 +145,28 @@ where
         Some(Token::Equal) => {
             tokens.next();
             let (expr, tokens) = parse_expr(tokens, 0);
-            (ASTVariableDeclaration {
-                name: variable_name,
-                init: Some(expr)
-            }, tokens)
+            (
+                ASTVariableDeclaration {
+                    name: variable_name,
+                    init: Some(expr),
+                },
+                tokens,
+            )
         }
         Some(Token::Semicolon) => {
             tokens.next();
-            (ASTVariableDeclaration {
-                name: variable_name,
-                init: None
-            }, tokens)
+            (
+                ASTVariableDeclaration {
+                    name: variable_name,
+                    init: None,
+                },
+                tokens,
+            )
         }
-        unknown_token => panic!("Unexpected token after variable declaration: {:?}", unknown_token)
+        unknown_token => panic!(
+            "Unexpected token after variable declaration: {:?}",
+            unknown_token
+        ),
     }
 }
 
@@ -207,7 +216,11 @@ where
                         let right_and_tokens = parse_expr(tokens, curr_precedence + 1);
                         let right = right_and_tokens.0;
                         tokens = right_and_tokens.1;
-                        left = ASTExpression::BinaryOperation(binary_op, Box::new(left), Box::new(right));
+                        left = ASTExpression::BinaryOperation(
+                            binary_op,
+                            Box::new(left),
+                            Box::new(right),
+                        );
                     }
                 }
             } else {

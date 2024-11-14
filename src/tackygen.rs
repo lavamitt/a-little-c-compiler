@@ -77,7 +77,7 @@ impl TACKYHelperFunctions {
 }
 
 pub struct TACKYContext {
-    helper: TACKYHelperFunctions
+    helper: TACKYHelperFunctions,
 }
 
 impl TACKYContext {
@@ -86,18 +86,20 @@ impl TACKYContext {
             helper: TACKYHelperFunctions {
                 tmp_register_counter: 0,
                 label_counter: 0,
-            }
+            },
         }
     }
 }
-
 
 pub fn tackygen(context: &mut TACKYContext, program: ASTProgram) -> TACKYProgram {
     let function = tackygen_function(context, program.function);
     TACKYProgram { function }
 }
 
-fn tackygen_function(context: &mut TACKYContext, function: ASTFunctionDefinition) -> TACKYFunctionDefinition {
+fn tackygen_function(
+    context: &mut TACKYContext,
+    function: ASTFunctionDefinition,
+) -> TACKYFunctionDefinition {
     let name = function.name;
     let instructions = tackygen_body(context, function.body);
 
@@ -129,7 +131,7 @@ fn tackygen_expression(
         ASTExpression::Constant(num) => TACKYVal::Constant(num),
         ASTExpression::UnaryOperation(ast_unop, expr) => {
             let src = tackygen_expression(context, *expr, instructions);
-            let dst_name = unsafe { context.helper.make_temporary_register() }; // we're not running a multithreaded app
+            let dst_name = context.helper.make_temporary_register();
             let dst = TACKYVal::Var(dst_name);
             let tacky_unop = convert_unop(ast_unop);
             instructions.push(TACKYInstruction::Unary(tacky_unop, src, dst.clone()));
@@ -137,10 +139,9 @@ fn tackygen_expression(
         }
         ASTExpression::BinaryOperation(ASTBinaryOperator::And, expr1, expr2) => {
             let src1 = tackygen_expression(context, *expr1, instructions);
-            let labels = unsafe {
-                context.helper
-                    .make_labels_at_same_counter(vec!["and_false_".to_string(), "end_".to_string()])
-            };
+            let labels = context
+                .helper
+                .make_labels_at_same_counter(vec!["and_false_".to_string(), "end_".to_string()]);
             let false_label = &labels[0];
             let end = &labels[1];
             instructions.push(TACKYInstruction::JumpIfZero(src1, false_label.clone()));
@@ -157,7 +158,9 @@ fn tackygen_expression(
         }
         ASTExpression::BinaryOperation(ASTBinaryOperator::Or, expr1, expr2) => {
             let src1 = tackygen_expression(context, *expr1, instructions);
-            let labels = context.helper.make_labels_at_same_counter(vec!["or_true_".to_string(), "end_".to_string()])
+            let labels = context
+                .helper
+                .make_labels_at_same_counter(vec!["or_true_".to_string(), "end_".to_string()]);
             let true_label = &labels[0];
             let end = &labels[1];
             instructions.push(TACKYInstruction::JumpIfNotZero(src1, true_label.clone()));
