@@ -60,13 +60,13 @@ pub struct TACKYHelperFunctions {
 }
 
 impl TACKYHelperFunctions {
-    fn make_temporary_register(&mut self) -> String {
+    pub fn make_temporary_register(&mut self) -> String {
         let new_temporary_register = format!("tmp.{}", self.tmp_register_counter.to_string());
         self.tmp_register_counter += 1;
         new_temporary_register
     }
 
-    fn make_labels_at_same_counter(&mut self, prefixes: Vec<String>) -> Vec<String> {
+    pub fn make_labels_at_same_counter(&mut self, prefixes: Vec<String>) -> Vec<String> {
         let mut new_labels: Vec<String> = Vec::new();
         for prefix in prefixes {
             new_labels.push(format!("{}.{}", prefix, self.label_counter.to_string()))
@@ -77,7 +77,7 @@ impl TACKYHelperFunctions {
 }
 
 pub struct TACKYContext {
-    helper: TACKYHelperFunctions,
+    pub helper: TACKYHelperFunctions,
 }
 
 impl TACKYContext {

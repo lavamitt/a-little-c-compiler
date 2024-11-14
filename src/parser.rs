@@ -1,14 +1,14 @@
 use crate::lexer::Token;
 use std::iter::Peekable;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ASTUnaryOperator {
     Negation,
     BitwiseComplement,
     Not,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ASTBinaryOperator {
     Add,
     Subtract,
@@ -26,7 +26,7 @@ pub enum ASTBinaryOperator {
     Equal,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ASTExpression {
     Constant(u32),
     Var(String),
@@ -35,26 +35,26 @@ pub enum ASTExpression {
     Assignment(Box<ASTExpression>, Box<ASTExpression>), // lvalue = expression
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ASTStatement {
     Return(ASTExpression),
     Expression(ASTExpression),
     Null,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ASTVariableDeclaration {
     pub name: String,
     pub init: Option<ASTExpression>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ASTBlockItem {
     Statement(ASTStatement),
     VariableDeclaration(ASTVariableDeclaration),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ASTFunctionDefinition {
     pub name: String,
     pub body: Vec<ASTBlockItem>,

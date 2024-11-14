@@ -2,12 +2,14 @@ mod codeemission;
 mod codegen;
 mod lexer;
 mod parser;
+mod semantic_analysis;
 mod tackygen;
 
 use crate::codeemission::emit_code;
 use crate::codegen::codegen;
 use crate::lexer::Lexer;
 use crate::parser::parse_program;
+use crate::semantic_analysis::semantic_pass;
 use crate::tackygen::tackygen;
 use crate::tackygen::TACKYContext;
 use std::env;
