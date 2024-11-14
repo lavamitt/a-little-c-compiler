@@ -21,6 +21,7 @@ use std::process::Command;
 pub enum Stage {
     Lexing,
     Parsing,
+    Validate,
     Tacky,
     Codegen,
     CodeEmission,
@@ -58,6 +59,7 @@ fn parse_args(args: &[String]) -> (Option<Stage>, String) {
     let stage = match args[1].as_str() {
         "--lex" => Some(Stage::Lexing),
         "--parse" => Some(Stage::Parsing),
+        "--validate" => Some(Stage::Validate),
         "--tacky" => Some(Stage::Tacky),
         "--codegen" => Some(Stage::Codegen),
         "--emit" => Some(Stage::CodeEmission),
@@ -105,9 +107,17 @@ fn run_parser(code: &str) -> parser::ASTProgram {
     program
 }
 
-fn run_tackygen(code: &str) -> tackygen::TACKYProgram {
+fn run_validate(code: &str) -> (parser::ASTProgram, TACKYContext) {
     let program = run_parser(code);
     let mut context = TACKYContext::new();
+    let resolved_program = semantic_pass(&mut context, program);
+    println!("############## VAIDATE DEBUG INFO ##############");
+    println!("{:?}", resolved_program);
+    (resolved_program, context)
+}
+
+fn run_tackygen(code: &str) -> tackygen::TACKYProgram {
+    let (program, mut context) = run_validate(code);
     let tackygen = tackygen(&mut context, program);
     println!("############## TACKYGEN DEBUG INFO ##############");
     println!("{:?}", tackygen);
@@ -162,6 +172,9 @@ fn run_up_to_stage(code: &str, input_path: &Path, stage: Stage) {
         }
         Stage::Parsing => {
             run_parser(code);
+        }
+        Stage::Validate => {
+            run_validate(code);
         }
         Stage::Tacky => {
             run_tackygen(code);

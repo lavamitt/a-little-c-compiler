@@ -72,7 +72,7 @@ pub fn resolve_declaration(
 }
 
 pub fn resolve_expr(
-    context: &mut TACKYContext,
+    context: &mut TACKYContext, // technically this isn't used...
     expr: &ASTExpression,
     variable_map: &mut HashMap<String, String>,
 ) -> ASTExpression {
