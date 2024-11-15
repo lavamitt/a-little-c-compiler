@@ -144,7 +144,8 @@ where
     match tokens.peek() {
         Some(Token::Equal) => {
             tokens.next();
-            let (expr, tokens) = parse_expr(tokens, 0);
+            let (expr, mut tokens) = parse_expr(tokens, 0);
+            expect_token(tokens.next(), &Token::Semicolon);
             (
                 ASTVariableDeclaration {
                     name: variable_name,

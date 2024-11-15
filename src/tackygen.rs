@@ -1,6 +1,7 @@
+use core::panic;
+
 use crate::parser::{
-    ASTBinaryOperator, ASTExpression, ASTFunctionDefinition, ASTProgram, ASTStatement,
-    ASTUnaryOperator,
+    ASTBinaryOperator, ASTBlockItem, ASTExpression, ASTFunctionDefinition, ASTProgram, ASTStatement, ASTUnaryOperator, ASTVariableDeclaration
 };
 
 #[derive(Debug, Clone)]
@@ -34,9 +35,9 @@ pub enum TACKYBinaryOperator {
 #[derive(Debug)]
 pub enum TACKYInstruction {
     Return(TACKYVal),
-    Unary(TACKYUnaryOperator, TACKYVal, TACKYVal), // src dst
+    Unary(TACKYUnaryOperator, TACKYVal, TACKYVal),             // src dst
     Binary(TACKYBinaryOperator, TACKYVal, TACKYVal, TACKYVal), // src1 src2 dst
-    Copy(TACKYVal, TACKYVal),                      // src dst
+    Copy(TACKYVal, TACKYVal),                                  // src dst
     Jump(String),
     JumpIfZero(TACKYVal, String),
     JumpIfNotZero(TACKYVal, String),
@@ -101,25 +102,59 @@ fn tackygen_function(
     function: ASTFunctionDefinition,
 ) -> TACKYFunctionDefinition {
     let name = function.name;
-    let instructions = tackygen_body(context, function.body);
 
+    let instructions = tackygen_body(context, function.body);
+    
     TACKYFunctionDefinition { name, instructions }
 }
 
-fn tackygen_body(context: &mut TACKYContext, statement: ASTStatement) -> Vec<TACKYInstruction> {
+fn tackygen_body(context: &mut TACKYContext, body: Vec<ASTBlockItem>) -> Vec<TACKYInstruction> {
     let mut instructions: Vec<TACKYInstruction> = Vec::new();
 
-    match statement {
-        ASTStatement::Return(expr) => {
-            let return_val = tackygen_expression(context, expr, &mut instructions);
-            instructions.push(TACKYInstruction::Return(return_val))
-            // instructions.push(Instruction::Mov(return_operand, Operand::Register));
-            // instructions.push(Instruction::Ret);
+    for item in body {
+        match item {
+            ASTBlockItem::Statement(statement) => tackygen_statement(context, statement, &mut instructions),
+            ASTBlockItem::VariableDeclaration(decl) => tackygen_declaration(context, decl, &mut instructions)
         }
-        _ => panic!("Found unknown statement type"),
-    };
+    }
+
+    // just in case the function did not provide a return statement
+    instructions.push(TACKYInstruction::Return(TACKYVal::Constant(0)));
+
+    // match statement {
+    //     ASTStatement::Return(expr) => {
+    //         let return_val = tackygen_expression(context, expr, &mut instructions);
+    //         instructions.push(TACKYInstruction::Return(return_val))
+    //         // instructions.push(Instruction::Mov(return_operand, Operand::Register));
+    //         // instructions.push(Instruction::Ret);
+    //     }
+    //     _ => panic!("Found unknown statement type"),
+    // };
 
     instructions
+}
+
+fn tackygen_statement(context: &mut TACKYContext, statement: ASTStatement, instructions: &mut Vec<TACKYInstruction>) {
+    match statement {
+        ASTStatement::Expression(expr) => {
+            tackygen_expression(context, expr, instructions);
+        }
+        ASTStatement::Return(expr) => {
+            let return_val = tackygen_expression(context, expr, instructions);
+            instructions.push(TACKYInstruction::Return(return_val));
+        }
+        ASTStatement::Null => {}
+    }
+}
+
+fn tackygen_declaration(context: &mut TACKYContext, decl: ASTVariableDeclaration, instructions: &mut Vec<TACKYInstruction>) {
+    match decl.init {
+        Some(expr) => {
+            let val = tackygen_expression(context, expr, instructions);
+            instructions.push(TACKYInstruction::Copy(val, TACKYVal::Var(decl.name.clone())));
+        }
+        None => {}
+    }
 }
 
 fn tackygen_expression(
@@ -129,6 +164,17 @@ fn tackygen_expression(
 ) -> TACKYVal {
     let operand = match expression {
         ASTExpression::Constant(num) => TACKYVal::Constant(num),
+        ASTExpression::Var(name) => TACKYVal::Var(name),
+        ASTExpression::Assignment(lvalue, expr) => {
+            match *lvalue {
+                ASTExpression::Var(lvalue_name) => {
+                    let result = tackygen_expression(context, *expr, instructions);
+                    instructions.push(TACKYInstruction::Copy(result, TACKYVal::Var(lvalue_name.clone())));
+                    TACKYVal::Var(lvalue_name)                                 
+                }
+                _ => panic!("Expected LHS of assignment to be a Variable, this should have been caught in the semantic pass. {:?}", *lvalue)
+            }
+        }
         ASTExpression::UnaryOperation(ast_unop, expr) => {
             let src = tackygen_expression(context, *expr, instructions);
             let dst_name = context.helper.make_temporary_register();
@@ -147,7 +193,7 @@ fn tackygen_expression(
             instructions.push(TACKYInstruction::JumpIfZero(src1, false_label.clone()));
             let src2 = tackygen_expression(context, *expr2, instructions);
             instructions.push(TACKYInstruction::JumpIfZero(src2, false_label.clone()));
-            let dst_name = unsafe { context.helper.make_temporary_register() };
+            let dst_name = context.helper.make_temporary_register();
             let dst = TACKYVal::Var(dst_name);
             instructions.push(TACKYInstruction::Copy(TACKYVal::Constant(1), dst.clone()));
             instructions.push(TACKYInstruction::Jump(end.clone()));
