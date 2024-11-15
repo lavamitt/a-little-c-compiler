@@ -10,6 +10,10 @@ pub enum Token {
     Semicolon,
     IntKeyword,
     ReturnKeyword,
+    IfKeyword,
+    ElseKeyword,
+    QuestionMark,
+    Colon,
     Identifier(String),
     IntegerLiteral(u32),
     Equal,                // =
@@ -35,6 +39,8 @@ pub fn is_keyword(word: &str) -> Option<Token> {
     match word {
         "int" => Some(Token::IntKeyword),
         "return" => Some(Token::ReturnKeyword),
+        "if" => Some(Token::IfKeyword),
+        "else" => Some(Token::ElseKeyword),
         _ => None,
     }
 }
@@ -105,6 +111,8 @@ impl<'a> Lexer<'a> {
                 '(' => Token::OpenParen,
                 ')' => Token::CloseParen,
                 ';' => Token::Semicolon,
+                '?' => Token::QuestionMark,
+                ':' => Token::Colon,
                 '+' => Token::Addition,
                 '*' => Token::Multiplication,
                 '/' => Token::Division,

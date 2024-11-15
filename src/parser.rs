@@ -24,6 +24,7 @@ pub enum ASTBinaryOperator {
     GreaterThan,
     GreaterOrEqual,
     Equal,
+    QuestionMark // a ? b : c
 }
 
 #[derive(Debug, Clone)]
@@ -33,10 +34,12 @@ pub enum ASTExpression {
     UnaryOperation(ASTUnaryOperator, Box<ASTExpression>),
     BinaryOperation(ASTBinaryOperator, Box<ASTExpression>, Box<ASTExpression>),
     Assignment(Box<ASTExpression>, Box<ASTExpression>), // lvalue = expression
+    Conditional(Box<ASTExpression>, Box<ASTExpression>, Box<ASTExpression>) // condition, then, else
 }
 
 #[derive(Debug, Clone)]
 pub enum ASTStatement {
+    If(ASTExpression, Box<ASTStatement>, Option<Box<ASTStatement>>), // condition, then, else
     Return(ASTExpression),
     Expression(ASTExpression),
     Null,
@@ -183,6 +186,20 @@ where
             expect_token(tokens.next(), &Token::Semicolon);
             (ASTStatement::Return(expr), tokens)
         }
+        Some(&Token::IfKeyword) => {
+            tokens.next();
+            expect_token(tokens.next(), &Token::OpenParen);
+            let (condition, mut tokens) = parse_expr(tokens, 0);
+            expect_token(tokens.next(), &Token::CloseParen);
+            
+            let (then, mut tokens) = parse_statement(tokens);
+            if tokens.peek() == Some(&&Token::ElseKeyword) {
+                tokens.next();
+                let (or_else, mut tokens) = parse_statement(tokens);
+                return (ASTStatement::If(condition, Box::new(then), Some(Box::new(or_else))), tokens)
+            } 
+            (ASTStatement::If(condition, Box::new(then), None), tokens)
+        }
         Some(&Token::Semicolon) => {
             tokens.next();
             (ASTStatement::Null, tokens)
@@ -208,15 +225,21 @@ where
                 tokens.next(); // snip off binary token
                 match binary_op {
                     ASTBinaryOperator::Equal => {
-                        let right_and_tokens = parse_expr(tokens, curr_precedence);
-                        let right = right_and_tokens.0;
-                        tokens = right_and_tokens.1;
+                        let (right, new_tokens) = parse_expr(tokens, curr_precedence);
+                        tokens = new_tokens;
                         left = ASTExpression::Assignment(Box::new(left), Box::new(right));
                     }
+                    ASTBinaryOperator::QuestionMark => {
+                        let (then, new_tokens) = parse_expr(tokens, 0);
+                        tokens = new_tokens;
+                        expect_token(tokens.next(), &Token::Colon);
+                        let (right, new_tokens) = parse_expr(tokens, curr_precedence);
+                        tokens = new_tokens;
+                        left = ASTExpression::Conditional(Box::new(left), Box::new(then), Box::new(right));
+                    }
                     _ => {
-                        let right_and_tokens = parse_expr(tokens, curr_precedence + 1);
-                        let right = right_and_tokens.0;
-                        tokens = right_and_tokens.1;
+                        let (right, new_tokens) = parse_expr(tokens, curr_precedence + 1);
+                        tokens = new_tokens;
                         left = ASTExpression::BinaryOperation(
                             binary_op,
                             Box::new(left),
@@ -251,6 +274,7 @@ fn token_to_binary_op(token: &Token) -> Option<ASTBinaryOperator> {
         Token::GreaterThan => Some(ASTBinaryOperator::GreaterThan),
         Token::GreaterThanOrEqualTo => Some(ASTBinaryOperator::GreaterOrEqual),
         Token::Equal => Some(ASTBinaryOperator::Equal),
+        Token::QuestionMark => Some(ASTBinaryOperator::QuestionMark),
         _ => None,
     }
 }
@@ -270,6 +294,7 @@ fn precedence(binary_op: &ASTBinaryOperator) -> u32 {
         ASTBinaryOperator::NotEqual => 30,
         ASTBinaryOperator::And => 10,
         ASTBinaryOperator::Or => 5,
+        ASTBinaryOperator::QuestionMark => 3,
         ASTBinaryOperator::Equal => 1,
         _ => unreachable!(), // This should never happen
     }

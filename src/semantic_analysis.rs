@@ -39,6 +39,19 @@ pub fn resolve_statement(
         ASTStatement::Return(expr) => {
             ASTStatement::Return(resolve_expr(context, expr, variable_map))
         }
+        ASTStatement::If(condition, then, or_else) => {
+            let resolved_condition = resolve_expr(context, condition, variable_map);
+            let resolved_then = resolve_statement(context, then, variable_map);
+            let resolved_else = or_else
+                .as_ref()
+                .map(|else_stmt| resolve_statement(context, else_stmt, variable_map));
+            
+            ASTStatement::If(
+                resolved_condition,
+                Box::new(resolved_then),
+                resolved_else.map(Box::new)
+            )
+        }
         ASTStatement::Expression(expr) => {
             ASTStatement::Expression(resolve_expr(context, expr, variable_map))
         }
@@ -89,6 +102,14 @@ pub fn resolve_expr(
                 left
             ),
         },
+
+        ASTExpression::Conditional(condition, then, or_else) => {
+            return ASTExpression::Conditional(
+                Box::new(resolve_expr(context, condition, variable_map)),
+                Box::new(resolve_expr(context, then, variable_map)),
+                Box::new(resolve_expr(context, or_else, variable_map))
+            )
+        }
 
         ASTExpression::Var(name) => match variable_map.get(name) {
             Some(new_name) => {

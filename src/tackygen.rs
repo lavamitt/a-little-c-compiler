@@ -148,6 +148,42 @@ fn tackygen_statement(
         ASTStatement::Expression(expr) => {
             tackygen_expression(context, expr, instructions);
         }
+        ASTStatement::If(condition, then, or_else) => {
+            let condition_val = tackygen_expression(context, condition, instructions);
+
+            match or_else {
+                Some(else_statement) => {
+                    let labels = context
+                        .helper
+                        .make_labels_at_same_counter(vec!["if_else_".to_string(), "end_".to_string()]);
+                    let else_label = labels[0].clone();
+                    let end_label = labels[1].clone();
+
+                    instructions.push(TACKYInstruction::JumpIfZero(condition_val, else_label.clone()));
+
+                    tackygen_statement(context, *then, instructions);
+                    instructions.push(TACKYInstruction::Jump(end_label.clone()));
+
+                    instructions.push(TACKYInstruction::Label(else_label));
+                    tackygen_statement(context, *else_statement, instructions);
+
+                    instructions.push(TACKYInstruction::Label(end_label));
+                }
+                None => {
+                    let labels = context
+                        .helper
+                        .make_labels_at_same_counter(vec!["end_".to_string()]);
+                    let end_label = labels[0].clone();
+
+                    instructions.push(TACKYInstruction::JumpIfZero(condition_val, end_label.clone()));
+
+                    tackygen_statement(context, *then, instructions);
+                    instructions.push(TACKYInstruction::Jump(end_label.clone()));
+
+                    instructions.push(TACKYInstruction::Label(end_label));
+                }
+            }
+        }
         ASTStatement::Return(expr) => {
             let return_val = tackygen_expression(context, expr, instructions);
             instructions.push(TACKYInstruction::Return(return_val));
@@ -190,6 +226,30 @@ fn tackygen_expression(
                 }
                 _ => panic!("Expected LHS of assignment to be a Variable, this should have been caught in the semantic pass. {:?}", *lvalue)
             }
+        }
+        ASTExpression::Conditional(condition, then, or_else) => {
+            let condition_val = tackygen_expression(context, *condition, instructions);
+
+            let labels = context
+                .helper
+                .make_labels_at_same_counter(vec!["if_else_".to_string(), "end_".to_string()]);
+            let else_label = labels[0].clone();
+            let end_label = labels[1].clone();
+            let result_name = context.helper.make_temporary_register();
+            let result = TACKYVal::Var(result_name);
+
+            instructions.push(TACKYInstruction::JumpIfZero(condition_val, else_label.clone()));
+
+            let then_val = tackygen_expression(context, *then, instructions);
+            instructions.push(TACKYInstruction::Copy(then_val, result.clone()));
+            instructions.push(TACKYInstruction::Jump(end_label.clone()));
+
+            instructions.push(TACKYInstruction::Label(else_label));
+            let else_val = tackygen_expression(context, *or_else, instructions);
+            instructions.push(TACKYInstruction::Copy(else_val, result.clone()));
+
+            instructions.push(TACKYInstruction::Label(end_label));
+            result
         }
         ASTExpression::UnaryOperation(ast_unop, expr) => {
             let src = tackygen_expression(context, *expr, instructions);
