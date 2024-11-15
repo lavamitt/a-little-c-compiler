@@ -24,7 +24,7 @@ pub enum ASTBinaryOperator {
     GreaterThan,
     GreaterOrEqual,
     Equal,
-    QuestionMark // a ? b : c
+    QuestionMark, // a ? b : c
 }
 
 #[derive(Debug, Clone)]
@@ -34,7 +34,7 @@ pub enum ASTExpression {
     UnaryOperation(ASTUnaryOperator, Box<ASTExpression>),
     BinaryOperation(ASTBinaryOperator, Box<ASTExpression>, Box<ASTExpression>),
     Assignment(Box<ASTExpression>, Box<ASTExpression>), // lvalue = expression
-    Conditional(Box<ASTExpression>, Box<ASTExpression>, Box<ASTExpression>) // condition, then, else
+    Conditional(Box<ASTExpression>, Box<ASTExpression>, Box<ASTExpression>), // condition, then, else
 }
 
 #[derive(Debug, Clone)]
@@ -191,13 +191,16 @@ where
             expect_token(tokens.next(), &Token::OpenParen);
             let (condition, mut tokens) = parse_expr(tokens, 0);
             expect_token(tokens.next(), &Token::CloseParen);
-            
+
             let (then, mut tokens) = parse_statement(tokens);
             if tokens.peek() == Some(&&Token::ElseKeyword) {
                 tokens.next();
                 let (or_else, mut tokens) = parse_statement(tokens);
-                return (ASTStatement::If(condition, Box::new(then), Some(Box::new(or_else))), tokens)
-            } 
+                return (
+                    ASTStatement::If(condition, Box::new(then), Some(Box::new(or_else))),
+                    tokens,
+                );
+            }
             (ASTStatement::If(condition, Box::new(then), None), tokens)
         }
         Some(&Token::Semicolon) => {
@@ -235,7 +238,11 @@ where
                         expect_token(tokens.next(), &Token::Colon);
                         let (right, new_tokens) = parse_expr(tokens, curr_precedence);
                         tokens = new_tokens;
-                        left = ASTExpression::Conditional(Box::new(left), Box::new(then), Box::new(right));
+                        left = ASTExpression::Conditional(
+                            Box::new(left),
+                            Box::new(then),
+                            Box::new(right),
+                        );
                     }
                     _ => {
                         let (right, new_tokens) = parse_expr(tokens, curr_precedence + 1);

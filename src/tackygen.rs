@@ -153,13 +153,17 @@ fn tackygen_statement(
 
             match or_else {
                 Some(else_statement) => {
-                    let labels = context
-                        .helper
-                        .make_labels_at_same_counter(vec!["if_else_".to_string(), "end_".to_string()]);
+                    let labels = context.helper.make_labels_at_same_counter(vec![
+                        "if_else_".to_string(),
+                        "end_".to_string(),
+                    ]);
                     let else_label = labels[0].clone();
                     let end_label = labels[1].clone();
 
-                    instructions.push(TACKYInstruction::JumpIfZero(condition_val, else_label.clone()));
+                    instructions.push(TACKYInstruction::JumpIfZero(
+                        condition_val,
+                        else_label.clone(),
+                    ));
 
                     tackygen_statement(context, *then, instructions);
                     instructions.push(TACKYInstruction::Jump(end_label.clone()));
@@ -175,7 +179,10 @@ fn tackygen_statement(
                         .make_labels_at_same_counter(vec!["end_".to_string()]);
                     let end_label = labels[0].clone();
 
-                    instructions.push(TACKYInstruction::JumpIfZero(condition_val, end_label.clone()));
+                    instructions.push(TACKYInstruction::JumpIfZero(
+                        condition_val,
+                        end_label.clone(),
+                    ));
 
                     tackygen_statement(context, *then, instructions);
                     instructions.push(TACKYInstruction::Jump(end_label.clone()));

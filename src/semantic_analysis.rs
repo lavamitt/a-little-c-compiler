@@ -45,11 +45,11 @@ pub fn resolve_statement(
             let resolved_else = or_else
                 .as_ref()
                 .map(|else_stmt| resolve_statement(context, else_stmt, variable_map));
-            
+
             ASTStatement::If(
                 resolved_condition,
                 Box::new(resolved_then),
-                resolved_else.map(Box::new)
+                resolved_else.map(Box::new),
             )
         }
         ASTStatement::Expression(expr) => {
@@ -107,7 +107,7 @@ pub fn resolve_expr(
             return ASTExpression::Conditional(
                 Box::new(resolve_expr(context, condition, variable_map)),
                 Box::new(resolve_expr(context, then, variable_map)),
-                Box::new(resolve_expr(context, or_else, variable_map))
+                Box::new(resolve_expr(context, or_else, variable_map)),
             )
         }
 
