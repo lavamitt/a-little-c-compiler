@@ -131,7 +131,7 @@ where
         items.push(next_item);
         tokens = rest_of_tokens;
     }
-    expect_token(tokens.next(), &Token::OpenBrace);
+    expect_token(tokens.next(), &Token::CloseBrace);
 
     (ASTBlock { items }, tokens)
 }

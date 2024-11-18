@@ -2,7 +2,7 @@ use core::panic;
 
 use crate::parser::{
     ASTBinaryOperator, ASTBlockItem, ASTExpression, ASTFunctionDefinition, ASTProgram,
-    ASTStatement, ASTUnaryOperator, ASTVariableDeclaration,
+    ASTStatement, ASTUnaryOperator, ASTVariableDeclaration, ASTBlock
 };
 
 #[derive(Debug, Clone)]
@@ -104,39 +104,27 @@ fn tackygen_function(
 ) -> TACKYFunctionDefinition {
     let name = function.name;
 
-    let instructions = tackygen_body(context, function.body);
-
-    TACKYFunctionDefinition { name, instructions }
-}
-
-fn tackygen_body(context: &mut TACKYContext, body: Vec<ASTBlockItem>) -> Vec<TACKYInstruction> {
     let mut instructions: Vec<TACKYInstruction> = Vec::new();
-
-    for item in body {
-        match item {
-            ASTBlockItem::Statement(statement) => {
-                tackygen_statement(context, statement, &mut instructions)
-            }
-            ASTBlockItem::VariableDeclaration(decl) => {
-                tackygen_declaration(context, decl, &mut instructions)
-            }
-        }
-    }
+    tackygen_block(context, function.body, &mut instructions);
 
     // just in case the function did not provide a return statement
     instructions.push(TACKYInstruction::Return(TACKYVal::Constant(0)));
 
-    // match statement {
-    //     ASTStatement::Return(expr) => {
-    //         let return_val = tackygen_expression(context, expr, &mut instructions);
-    //         instructions.push(TACKYInstruction::Return(return_val))
-    //         // instructions.push(Instruction::Mov(return_operand, Operand::Register));
-    //         // instructions.push(Instruction::Ret);
-    //     }
-    //     _ => panic!("Found unknown statement type"),
-    // };
 
-    instructions
+    TACKYFunctionDefinition { name, instructions }
+}
+
+fn tackygen_block(context: &mut TACKYContext, block: ASTBlock, instructions: &mut Vec<TACKYInstruction>) {
+    for item in block.items {
+        match item {
+            ASTBlockItem::Statement(statement) => {
+                tackygen_statement(context, statement, instructions)
+            }
+            ASTBlockItem::VariableDeclaration(decl) => {
+                tackygen_declaration(context, decl, instructions)
+            }
+        }
+    }
 }
 
 fn tackygen_statement(
@@ -191,6 +179,9 @@ fn tackygen_statement(
                 }
             }
         }
+        ASTStatement::Compound(block) => {
+            tackygen_block(context, block, instructions);
+        }  
         ASTStatement::Return(expr) => {
             let return_val = tackygen_expression(context, expr, instructions);
             instructions.push(TACKYInstruction::Return(return_val));
