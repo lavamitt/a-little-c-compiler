@@ -1,6 +1,6 @@
 use crate::parser::{
-    ASTBlockItem, ASTExpression, ASTFunctionDefinition, ASTProgram, ASTStatement,
-    ASTVariableDeclaration, ASTBlock
+    ASTBlock, ASTBlockItem, ASTExpression, ASTFunctionDefinition, ASTProgram, ASTStatement,
+    ASTVariableDeclaration,
 };
 use crate::tackygen::TACKYContext;
 use std::collections::HashMap;
@@ -8,7 +8,7 @@ use std::collections::HashMap;
 #[derive(Debug, Clone)]
 struct VariableMapEntry {
     new_name: String,
-    from_current_block: bool
+    from_current_block: bool,
 }
 
 pub fn semantic_pass(context: &mut TACKYContext, program: ASTProgram) -> ASTProgram {
@@ -27,7 +27,7 @@ pub fn semantic_pass(context: &mut TACKYContext, program: ASTProgram) -> ASTProg
 pub fn resolve_block(
     context: &mut TACKYContext,
     block: &ASTBlock,
-    variable_map: &mut HashMap<String, VariableMapEntry>
+    variable_map: &mut HashMap<String, VariableMapEntry>,
 ) -> ASTBlock {
     let mut resolved_block_items: Vec<ASTBlockItem> = Vec::new();
 
@@ -45,7 +45,7 @@ pub fn resolve_block(
     }
 
     ASTBlock {
-        items: resolved_block_items
+        items: resolved_block_items,
     }
 }
 
@@ -88,7 +88,9 @@ pub fn resolve_declaration(
     decl: &ASTVariableDeclaration,
     variable_map: &mut HashMap<String, VariableMapEntry>,
 ) -> ASTVariableDeclaration {
-    if variable_map.contains_key(&decl.name) && variable_map.get(&decl.name).unwrap().from_current_block {
+    if variable_map.contains_key(&decl.name)
+        && variable_map.get(&decl.name).unwrap().from_current_block
+    {
         panic!("Duplicate variable declaration!: {:?}", decl.name);
     }
 
@@ -97,7 +99,7 @@ pub fn resolve_declaration(
         .make_labels_at_same_counter(vec![decl.name.clone()])[0];
     let new_entry = VariableMapEntry {
         new_name: unique_name.clone(),
-        from_current_block: true
+        from_current_block: true,
     };
     variable_map.insert(decl.name.clone(), new_entry);
 
@@ -165,10 +167,12 @@ pub fn resolve_expr(
     }
 }
 
-fn copy_variable_map(variable_map: &mut HashMap<String, VariableMapEntry>) -> HashMap<String, VariableMapEntry> {
+fn copy_variable_map(
+    variable_map: &mut HashMap<String, VariableMapEntry>,
+) -> HashMap<String, VariableMapEntry> {
     let mut new_map = variable_map.clone();
     for (_, value) in new_map.iter_mut() {
-       value.from_current_block = false;
+        value.from_current_block = false;
     }
     return new_map;
 }

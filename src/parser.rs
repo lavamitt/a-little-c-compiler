@@ -60,7 +60,7 @@ pub enum ASTBlockItem {
 
 #[derive(Debug, Clone)]
 pub struct ASTBlock {
-    pub items: Vec<ASTBlockItem>
+    pub items: Vec<ASTBlockItem>,
 }
 
 #[derive(Debug, Clone)]
@@ -115,7 +115,7 @@ where
 
 // <block> ::= "{" { <block-item>} "}"
 fn parse_block<'a, I>(mut tokens: Peekable<I>) -> (ASTBlock, Peekable<I>)
-    where
+where
     I: Iterator<Item = &'a Token>,
 {
     let mut items: Vec<ASTBlockItem> = Vec::new();
@@ -133,12 +133,7 @@ fn parse_block<'a, I>(mut tokens: Peekable<I>) -> (ASTBlock, Peekable<I>)
     }
     expect_token(tokens.next(), &Token::OpenBrace);
 
-    (
-        ASTBlock {
-            items
-        },
-        tokens,
-    )
+    (ASTBlock { items }, tokens)
 }
 
 // <block-item> ::= <statement> | <declaration>
