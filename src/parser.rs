@@ -39,9 +39,10 @@ pub enum ASTExpression {
 
 #[derive(Debug, Clone)]
 pub enum ASTStatement {
-    If(ASTExpression, Box<ASTStatement>, Option<Box<ASTStatement>>), // condition, then, else
     Return(ASTExpression),
     Expression(ASTExpression),
+    If(ASTExpression, Box<ASTStatement>, Option<Box<ASTStatement>>), // condition, then, else
+    Compound(ASTBlock),
     Null,
 }
 
@@ -58,9 +59,14 @@ pub enum ASTBlockItem {
 }
 
 #[derive(Debug, Clone)]
+pub struct ASTBlock {
+    pub items: Vec<ASTBlockItem>
+}
+
+#[derive(Debug, Clone)]
 pub struct ASTFunctionDefinition {
     pub name: String,
-    pub body: Vec<ASTBlockItem>,
+    pub body: ASTBlock,
 }
 
 #[derive(Debug)]
@@ -77,7 +83,7 @@ where
     ASTProgram { function }
 }
 
-// <function> ::= "int" <identifier> "(" "void" ")" "{" { <block-item> } "}"
+// <function> ::= "int" <identifier> "(" "void" ")" "{" <block> "}"
 fn parse_function<'a, I>(mut tokens: Peekable<I>) -> (ASTFunctionDefinition, Peekable<I>)
 where
     I: Iterator<Item = &'a Token>,
@@ -90,21 +96,8 @@ where
     expect_token(tokens.next(), &Token::OpenParen);
     expect_token(tokens.next(), &Token::Identifier("void".to_string()));
     expect_token(tokens.next(), &Token::CloseParen);
-    expect_token(tokens.next(), &Token::OpenBrace);
 
-    let mut function_body: Vec<ASTBlockItem> = Vec::new();
-    while let Some(token) = tokens.peek() {
-        if token == &&Token::CloseBrace {
-            break;
-        }
-
-        let (next_item, rest_of_tokens) = parse_block_item(tokens);
-
-        function_body.push(next_item);
-        tokens = rest_of_tokens;
-    }
-
-    expect_token(tokens.next(), &Token::CloseBrace);
+    let (function_body, mut tokens) = parse_block(tokens);
 
     // Check for remaining tokens
     if tokens.next().is_some() {
@@ -115,6 +108,34 @@ where
         ASTFunctionDefinition {
             name: identifier,
             body: function_body,
+        },
+        tokens,
+    )
+}
+
+// <block> ::= "{" { <block-item>} "}"
+fn parse_block<'a, I>(mut tokens: Peekable<I>) -> (ASTBlock, Peekable<I>)
+    where
+    I: Iterator<Item = &'a Token>,
+{
+    let mut items: Vec<ASTBlockItem> = Vec::new();
+
+    expect_token(tokens.next(), &Token::OpenBrace);
+    while let Some(token) = tokens.peek() {
+        if token == &&Token::CloseBrace {
+            break;
+        }
+
+        let (next_item, rest_of_tokens) = parse_block_item(tokens);
+
+        items.push(next_item);
+        tokens = rest_of_tokens;
+    }
+    expect_token(tokens.next(), &Token::OpenBrace);
+
+    (
+        ASTBlock {
+            items
         },
         tokens,
     )
@@ -174,7 +195,7 @@ where
     }
 }
 
-// <statement> ::= "return" <exp> ";" | <exp> ";" | ";"
+// <statement> ::= "return" <exp> ";" | <exp> ";" | <block> | ";"
 fn parse_statement<'a, I>(mut tokens: Peekable<I>) -> (ASTStatement, Peekable<I>)
 where
     I: Iterator<Item = &'a Token>,
@@ -195,13 +216,17 @@ where
             let (then, mut tokens) = parse_statement(tokens);
             if tokens.peek() == Some(&&Token::ElseKeyword) {
                 tokens.next();
-                let (or_else, mut tokens) = parse_statement(tokens);
+                let (or_else, tokens) = parse_statement(tokens);
                 return (
                     ASTStatement::If(condition, Box::new(then), Some(Box::new(or_else))),
                     tokens,
                 );
             }
             (ASTStatement::If(condition, Box::new(then), None), tokens)
+        }
+        Some(&Token::OpenBrace) => {
+            let (block, tokens) = parse_block(tokens);
+            (ASTStatement::Compound(block), tokens)
         }
         Some(&Token::Semicolon) => {
             tokens.next();

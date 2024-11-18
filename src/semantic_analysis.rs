@@ -1,26 +1,20 @@
 use crate::parser::{
     ASTBlockItem, ASTExpression, ASTFunctionDefinition, ASTProgram, ASTStatement,
-    ASTVariableDeclaration,
+    ASTVariableDeclaration, ASTBlock
 };
 use crate::tackygen::TACKYContext;
 use std::collections::HashMap;
 
-pub fn semantic_pass(context: &mut TACKYContext, program: ASTProgram) -> ASTProgram {
-    let mut variable_map: HashMap<String, String> = HashMap::new();
+#[derive(Debug, Clone)]
+struct VariableMapEntry {
+    new_name: String,
+    from_current_block: bool
+}
 
-    let mut resolved_function_body: Vec<ASTBlockItem> = Vec::new();
-    for item in program.function.body {
-        match item {
-            ASTBlockItem::Statement(statement) => {
-                let resolved_statement = resolve_statement(context, &statement, &mut variable_map);
-                resolved_function_body.push(ASTBlockItem::Statement(resolved_statement))
-            }
-            ASTBlockItem::VariableDeclaration(decl) => {
-                let resolved_declaration = resolve_declaration(context, &decl, &mut variable_map);
-                resolved_function_body.push(ASTBlockItem::VariableDeclaration(resolved_declaration))
-            }
-        }
-    }
+pub fn semantic_pass(context: &mut TACKYContext, program: ASTProgram) -> ASTProgram {
+    let mut variable_map: HashMap<String, VariableMapEntry> = HashMap::new();
+
+    let resolved_function_body = resolve_block(context, &program.function.body, &mut variable_map);
 
     ASTProgram {
         function: ASTFunctionDefinition {
@@ -30,10 +24,35 @@ pub fn semantic_pass(context: &mut TACKYContext, program: ASTProgram) -> ASTProg
     }
 }
 
+pub fn resolve_block(
+    context: &mut TACKYContext,
+    block: &ASTBlock,
+    variable_map: &mut HashMap<String, VariableMapEntry>
+) -> ASTBlock {
+    let mut resolved_block_items: Vec<ASTBlockItem> = Vec::new();
+
+    for item in &block.items {
+        match item {
+            ASTBlockItem::Statement(statement) => {
+                let resolved_statement = resolve_statement(context, &statement, variable_map);
+                resolved_block_items.push(ASTBlockItem::Statement(resolved_statement))
+            }
+            ASTBlockItem::VariableDeclaration(decl) => {
+                let resolved_declaration = resolve_declaration(context, &decl, variable_map);
+                resolved_block_items.push(ASTBlockItem::VariableDeclaration(resolved_declaration))
+            }
+        }
+    }
+
+    ASTBlock {
+        items: resolved_block_items
+    }
+}
+
 pub fn resolve_statement(
     context: &mut TACKYContext,
     statement: &ASTStatement,
-    variable_map: &mut HashMap<String, String>,
+    variable_map: &mut HashMap<String, VariableMapEntry>,
 ) -> ASTStatement {
     match statement {
         ASTStatement::Return(expr) => {
@@ -55,6 +74,11 @@ pub fn resolve_statement(
         ASTStatement::Expression(expr) => {
             ASTStatement::Expression(resolve_expr(context, expr, variable_map))
         }
+        ASTStatement::Compound(block) => {
+            let mut new_scope_variable_map = copy_variable_map(variable_map);
+            let resolved_block = resolve_block(context, block, &mut new_scope_variable_map);
+            ASTStatement::Compound(resolved_block)
+        }
         ASTStatement::Null => ASTStatement::Null,
     }
 }
@@ -62,16 +86,20 @@ pub fn resolve_statement(
 pub fn resolve_declaration(
     context: &mut TACKYContext,
     decl: &ASTVariableDeclaration,
-    variable_map: &mut HashMap<String, String>,
+    variable_map: &mut HashMap<String, VariableMapEntry>,
 ) -> ASTVariableDeclaration {
-    if variable_map.contains_key(&decl.name) {
+    if variable_map.contains_key(&decl.name) && variable_map.get(&decl.name).unwrap().from_current_block {
         panic!("Duplicate variable declaration!: {:?}", decl.name);
     }
 
     let unique_name = &context
         .helper
         .make_labels_at_same_counter(vec![decl.name.clone()])[0];
-    variable_map.insert(decl.name.clone(), unique_name.clone());
+    let new_entry = VariableMapEntry {
+        new_name: unique_name.clone(),
+        from_current_block: true
+    };
+    variable_map.insert(decl.name.clone(), new_entry);
 
     let resolved_init = match &decl.init {
         Some(expr) => Some(resolve_expr(context, &expr, variable_map)),
@@ -87,7 +115,7 @@ pub fn resolve_declaration(
 pub fn resolve_expr(
     context: &mut TACKYContext, // technically this isn't used...
     expr: &ASTExpression,
-    variable_map: &mut HashMap<String, String>,
+    variable_map: &mut HashMap<String, VariableMapEntry>,
 ) -> ASTExpression {
     match expr {
         ASTExpression::Assignment(left, right) => match **left {
@@ -112,8 +140,8 @@ pub fn resolve_expr(
         }
 
         ASTExpression::Var(name) => match variable_map.get(name) {
-            Some(new_name) => {
-                return ASTExpression::Var(new_name.clone());
+            Some(entry) => {
+                return ASTExpression::Var(entry.new_name.clone());
             }
             None => panic!("Undeclared variable! Found: {:?}", name),
         },
@@ -135,4 +163,12 @@ pub fn resolve_expr(
 
         ASTExpression::Constant(num) => ASTExpression::Constant(num.clone()),
     }
+}
+
+fn copy_variable_map(variable_map: &mut HashMap<String, VariableMapEntry>) -> HashMap<String, VariableMapEntry> {
+    let mut new_map = variable_map.clone();
+    for (_, value) in new_map.iter_mut() {
+       value.from_current_block = false;
+    }
+    return new_map;
 }
