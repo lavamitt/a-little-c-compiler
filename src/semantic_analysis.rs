@@ -14,9 +14,12 @@ struct VariableMapEntry {
 }
 
 pub fn semantic_pass(context: &mut TACKYContext, program: ASTProgram) -> ASTProgram {
+    // resolve variables
     let mut variable_map: HashMap<String, VariableMapEntry> = HashMap::new();
-
     let resolved_function_body = resolve_block(context, &program.function.body, &mut variable_map);
+
+    // annotate labels
+    let annotated_and_resolved_body = annotate_block(context, resolved_function_body, &mut variable_map);
 
     ASTProgram {
         function: ASTFunctionDefinition {
@@ -81,17 +84,17 @@ pub fn resolve_statement(
             let resolved_block = resolve_block(context, block, &mut new_scope_variable_map);
             ASTStatement::Compound(resolved_block)
         }
-        ASTStatement::DoWhile(body, condition) => {
+        ASTStatement::DoWhile(body, condition, label) => {
             let resolved_body = resolve_statement(context, body, variable_map);
             let resolved_condition = resolve_expr(context, condition, variable_map);
-            ASTStatement::DoWhile(Box::new(resolved_body), resolved_condition)
+            ASTStatement::DoWhile(Box::new(resolved_body), resolved_condition, label.clone())
         }
-        ASTStatement::While(condition, body) => {
+        ASTStatement::While(condition, body, label) => {
             let resolved_condition = resolve_expr(context, condition, variable_map);
             let resolved_body = resolve_statement(context, body, variable_map);
-            ASTStatement::While(resolved_condition, Box::new(resolved_body))
+            ASTStatement::While(resolved_condition, Box::new(resolved_body), label.clone())
         }
-        ASTStatement::For(init, condition, post, body) => {
+        ASTStatement::For(init, condition, post, body, label) => {
             let mut new_scope_variable_map = copy_variable_map(variable_map);
             let resolved_for_init = match init {
                 ASTForInit::InitDecl(decl) => ASTForInit::InitDecl(resolve_declaration(context, decl, &mut new_scope_variable_map)),
@@ -115,10 +118,10 @@ pub fn resolve_statement(
 
             let resolved_body = resolve_statement(context, body, &mut new_scope_variable_map);
 
-            ASTStatement::For(resolved_for_init, resolved_condition, resolved_post, Box::new(resolved_body))
+            ASTStatement::For(resolved_for_init, resolved_condition, resolved_post, Box::new(resolved_body), label.clone())
         }
-        ASTStatement::Break => ASTStatement::Break,
-        ASTStatement::Continue => ASTStatement::Continue,
+        ASTStatement::Break(label) => ASTStatement::Break(label.clone()),
+        ASTStatement::Continue(label) => ASTStatement::Continue(label.clone()),
         ASTStatement::Null => ASTStatement::Null,
     }
 }
@@ -215,4 +218,29 @@ fn copy_variable_map(
         value.from_current_block = false;
     }
     return new_map;
+}
+
+pub fn annotate_block(
+    context: &mut TACKYContext,
+    block: &ASTBlock,
+    current_label: Option<&str>
+) -> ASTBlock {
+    let mut resolved_block_items: Vec<ASTBlockItem> = Vec::new();
+
+    for item in &block.items {
+        match item {
+            ASTBlockItem::Statement(statement) => {
+                let resolved_statement = annotate_statement(context, &statement, current_label);
+                resolved_block_items.push(ASTBlockItem::Statement(resolved_statement))
+            }
+            ASTBlockItem::VariableDeclaration(decl) => {
+                let resolved_declaration = annotate_declaration(context, &decl, current_label);
+                resolved_block_items.push(ASTBlockItem::VariableDeclaration(resolved_declaration))
+            }
+        }
+    }
+
+    ASTBlock {
+        items: resolved_block_items,
+    }
 }

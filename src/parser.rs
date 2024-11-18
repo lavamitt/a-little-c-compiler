@@ -43,11 +43,11 @@ pub enum ASTStatement {
     Expression(ASTExpression),
     If(ASTExpression, Box<ASTStatement>, Option<Box<ASTStatement>>), // condition, then, else
     Compound(ASTBlock),
-    DoWhile(Box<ASTStatement>, ASTExpression), // body, condition
-    While(ASTExpression, Box<ASTStatement>), // condition, body
-    For(ASTForInit, Option<ASTExpression>, Option<ASTExpression>, Box<ASTStatement>), // init, condition, post, body
-    Break,
-    Continue,
+    DoWhile(Box<ASTStatement>, ASTExpression, Option<String>), // body, condition, label
+    While(ASTExpression, Box<ASTStatement>, Option<String>), // condition, body, label
+    For(ASTForInit, Option<ASTExpression>, Option<ASTExpression>, Box<ASTStatement>, Option<String>), // init, condition, post, body, label
+    Break(Option<String>), // label
+    Continue(Option<String>), // label
     Null,
 }
 
@@ -261,7 +261,7 @@ where
                 }
             };
             let (body, tokens) = parse_statement(tokens);
-            (ASTStatement::For(init, condition, post, Box::new(body)), tokens)
+            (ASTStatement::For(init, condition, post, Box::new(body), None), tokens)
         }
 
         Some(&Token::WhileKeyword) => {
@@ -270,7 +270,7 @@ where
             let (condition, mut tokens) = parse_expr(tokens, 0);
             expect_token(tokens.next(), &Token::CloseParen);
             let (body, tokens) = parse_statement(tokens);
-            (ASTStatement::While(condition, Box::new(body)), tokens)
+            (ASTStatement::While(condition, Box::new(body), None), tokens)
         }
         Some(&Token::DoKeyword) => {
             tokens.next();
@@ -280,14 +280,14 @@ where
             let (condition, mut tokens) = parse_expr(tokens, 0);
             expect_token(tokens.next(), &Token::CloseParen);
             expect_token(tokens.next(), &Token::Semicolon);
-            (ASTStatement::DoWhile(Box::new(body), condition), tokens)
+            (ASTStatement::DoWhile(Box::new(body), condition, None), tokens)
         }
         Some(&Token::BreakKeyword) => {
             tokens.next();
-            (ASTStatement::Break, tokens)
+            (ASTStatement::Break(None), tokens)
         }
         Some(&Token::ContinueKeyword) => {
-            (ASTStatement::Continue, tokens)
+            (ASTStatement::Continue(None), tokens)
         }
         Some(&Token::Semicolon) => {
             tokens.next();
