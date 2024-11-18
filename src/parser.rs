@@ -43,7 +43,18 @@ pub enum ASTStatement {
     Expression(ASTExpression),
     If(ASTExpression, Box<ASTStatement>, Option<Box<ASTStatement>>), // condition, then, else
     Compound(ASTBlock),
+    DoWhile(Box<ASTStatement>, ASTExpression), // body statement, condition
+    While(ASTExpression, Box<ASTStatement>), // condition, body
+    For(ASTForInit, Option<ASTExpression>, Option<ASTExpression>, Box<ASTStatement>), // init, condition, post, body
+    Break,
+    Continue,
     Null,
+}
+
+#[derive(Debug, Clone)]
+pub enum ASTForInit {
+    InitDecl(ASTVariableDeclaration),
+    InitExp(Option<ASTExpression>) // why is this optional and not just ForInit in general is optional in For?
 }
 
 #[derive(Debug, Clone)]
@@ -223,6 +234,61 @@ where
             let (block, tokens) = parse_block(tokens);
             (ASTStatement::Compound(block), tokens)
         }
+        Some(&Token::ForKeyword) => {
+            tokens.next();
+            expect_token(tokens.next(), &Token::OpenParen);
+            let (init, mut tokens) = parse_for_init(tokens);
+            let (condition, mut tokens) = match tokens.peek() {
+                Some(&Token::Semicolon) => {
+                    tokens.next();
+                    (None, tokens)
+                }
+                _ => {
+                    let (expr, mut tokens) = parse_expr(tokens, 0);
+                    expect_token(tokens.next(), &Token::Semicolon);
+                    (Some(expr), tokens)
+                }
+            };
+            let (post, mut tokens) = match tokens.peek() {
+                Some(&Token::CloseParen) => {
+                    tokens.next();
+                    (None, tokens)
+                }
+                _ => {
+                    let (expr, mut tokens) = parse_expr(tokens, 0);
+                    expect_token(tokens.next(), &Token::CloseParen);
+                    (Some(expr), tokens)
+                }
+            };
+            let (body, tokens) = parse_statement(tokens);
+            (ASTStatement::For(init, condition, post, Box::new(body)), tokens)
+        }
+
+        Some(&Token::WhileKeyword) => {
+            tokens.next();
+            expect_token(tokens.next(), &Token::OpenParen);
+            let (condition, mut tokens) = parse_expr(tokens, 0);
+            expect_token(tokens.next(), &Token::CloseParen);
+            let (body, tokens) = parse_statement(tokens);
+            (ASTStatement::While(condition, Box::new(body)), tokens)
+        }
+        Some(&Token::DoKeyword) => {
+            tokens.next();
+            let (body, mut tokens) = parse_statement(tokens);
+            expect_token(tokens.next(), &Token::WhileKeyword);
+            expect_token(tokens.next(), &Token::OpenParen);
+            let (condition, mut tokens) = parse_expr(tokens, 0);
+            expect_token(tokens.next(), &Token::CloseParen);
+            expect_token(tokens.next(), &Token::Semicolon);
+            (ASTStatement::DoWhile(Box::new(body), condition), tokens)
+        }
+        Some(&Token::BreakKeyword) => {
+            tokens.next();
+            (ASTStatement::Break, tokens)
+        }
+        Some(&Token::ContinueKeyword) => {
+            (ASTStatement::Continue, tokens)
+        }
         Some(&Token::Semicolon) => {
             tokens.next();
             (ASTStatement::Null, tokens)
@@ -231,6 +297,27 @@ where
             let (expr, mut tokens) = parse_expr(tokens, 0);
             expect_token(tokens.next(), &Token::Semicolon);
             (ASTStatement::Expression(expr), tokens)
+        }
+    }
+}
+
+fn parse_for_init<'a, I>(mut tokens: Peekable<I>) -> (ASTForInit, Peekable<I>)
+where
+    I: Iterator<Item = &'a Token>,
+{
+    match tokens.peek() {
+        Some(&Token::IntKeyword) => {
+            let (decl, tokens) = parse_declaration(tokens);
+            (ASTForInit::InitDecl(decl), tokens)
+        }
+        Some(&Token::Semicolon) => {
+            tokens.next();
+            (ASTForInit::InitExp(None), tokens)
+        }
+        _ => {
+            let (expr, mut tokens) = parse_expr(tokens, 0);
+            expect_token(tokens.next(), &Token::Semicolon);
+            (ASTForInit::InitExp(Some(expr)), tokens)
         }
     }
 }
