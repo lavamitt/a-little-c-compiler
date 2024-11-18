@@ -43,7 +43,7 @@ pub enum ASTStatement {
     Expression(ASTExpression),
     If(ASTExpression, Box<ASTStatement>, Option<Box<ASTStatement>>), // condition, then, else
     Compound(ASTBlock),
-    DoWhile(Box<ASTStatement>, ASTExpression), // body statement, condition
+    DoWhile(Box<ASTStatement>, ASTExpression), // body, condition
     While(ASTExpression, Box<ASTStatement>), // condition, body
     For(ASTForInit, Option<ASTExpression>, Option<ASTExpression>, Box<ASTStatement>), // init, condition, post, body
     Break,
@@ -54,7 +54,7 @@ pub enum ASTStatement {
 #[derive(Debug, Clone)]
 pub enum ASTForInit {
     InitDecl(ASTVariableDeclaration),
-    InitExp(Option<ASTExpression>) // why is this optional and not just ForInit in general is optional in For?
+    InitExpr(Option<ASTExpression>)
 }
 
 #[derive(Debug, Clone)]
@@ -312,12 +312,12 @@ where
         }
         Some(&Token::Semicolon) => {
             tokens.next();
-            (ASTForInit::InitExp(None), tokens)
+            (ASTForInit::InitExpr(None), tokens)
         }
         _ => {
             let (expr, mut tokens) = parse_expr(tokens, 0);
             expect_token(tokens.next(), &Token::Semicolon);
-            (ASTForInit::InitExp(Some(expr)), tokens)
+            (ASTForInit::InitExpr(Some(expr)), tokens)
         }
     }
 }

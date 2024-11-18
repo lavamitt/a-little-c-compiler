@@ -1,9 +1,11 @@
 use crate::parser::{
     ASTBlock, ASTBlockItem, ASTExpression, ASTFunctionDefinition, ASTProgram, ASTStatement,
-    ASTVariableDeclaration,
+    ASTVariableDeclaration, ASTForInit
 };
 use crate::tackygen::TACKYContext;
 use std::collections::HashMap;
+
+
 
 #[derive(Debug, Clone)]
 struct VariableMapEntry {
@@ -79,6 +81,44 @@ pub fn resolve_statement(
             let resolved_block = resolve_block(context, block, &mut new_scope_variable_map);
             ASTStatement::Compound(resolved_block)
         }
+        ASTStatement::DoWhile(body, condition) => {
+            let resolved_body = resolve_statement(context, body, variable_map);
+            let resolved_condition = resolve_expr(context, condition, variable_map);
+            ASTStatement::DoWhile(Box::new(resolved_body), resolved_condition)
+        }
+        ASTStatement::While(condition, body) => {
+            let resolved_condition = resolve_expr(context, condition, variable_map);
+            let resolved_body = resolve_statement(context, body, variable_map);
+            ASTStatement::While(resolved_condition, Box::new(resolved_body))
+        }
+        ASTStatement::For(init, condition, post, body) => {
+            let mut new_scope_variable_map = copy_variable_map(variable_map);
+            let resolved_for_init = match init {
+                ASTForInit::InitDecl(decl) => ASTForInit::InitDecl(resolve_declaration(context, decl, &mut new_scope_variable_map)),
+                ASTForInit::InitExpr(maybe_expr) => {
+                    match maybe_expr {
+                        Some(expr) => ASTForInit::InitExpr(Some(resolve_expr(context, expr, &mut new_scope_variable_map))),
+                        None => ASTForInit::InitExpr(None)
+                    }
+                }
+            };
+
+            let resolved_condition = match condition {
+                Some(expr) => Some(resolve_expr(context, expr, &mut new_scope_variable_map)),
+                None => None
+            };
+
+            let resolved_post = match post {
+                Some(expr) => Some(resolve_expr(context, expr, &mut new_scope_variable_map)),
+                None => None
+            };
+
+            let resolved_body = resolve_statement(context, body, &mut new_scope_variable_map);
+
+            ASTStatement::For(resolved_for_init, resolved_condition, resolved_post, Box::new(resolved_body))
+        }
+        ASTStatement::Break => ASTStatement::Break,
+        ASTStatement::Continue => ASTStatement::Continue,
         ASTStatement::Null => ASTStatement::Null,
     }
 }
