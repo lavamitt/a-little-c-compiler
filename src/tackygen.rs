@@ -251,14 +251,16 @@ fn tackygen_statement(
             instructions.push(TACKYInstruction::Label(break_label));
         }
         ASTStatement::Break(label) => {
-            let for_label =
-                label.unwrap_or_else(|| panic!("Found break used outside of loop context.")); // should be caught in semantic analysis, but too lazy to implement the additional passes needed to catch it there
+            let for_label = label.unwrap_or_else(|| {
+                panic!("Found break improperly unlabeled or used outside of loop context.")
+            });
             let break_label = format!("{}_{}", "break", for_label);
             instructions.push(TACKYInstruction::Jump(break_label));
         }
         ASTStatement::Continue(label) => {
-            let for_label =
-                label.unwrap_or_else(|| panic!("Found continue used outside of loop context.")); // should be caught in semantic analysis, but too lazy to implement the additional passes needed to catch it there
+            let for_label = label.unwrap_or_else(|| {
+                panic!("Found continue improperaly unlabeled or used outside of loop context.")
+            });
             let continue_label = format!("{}_{}", "continue", for_label);
             instructions.push(TACKYInstruction::Jump(continue_label));
         }

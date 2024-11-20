@@ -28,7 +28,7 @@ pub fn semantic_pass(context: &mut TACKYContext, program: ASTProgram) -> ASTProg
     }
 }
 
-pub fn resolve_block(
+fn resolve_block(
     context: &mut TACKYContext,
     block: &ASTBlock,
     variable_map: &mut HashMap<String, VariableMapEntry>,
@@ -53,7 +53,7 @@ pub fn resolve_block(
     }
 }
 
-pub fn resolve_statement(
+fn resolve_statement(
     context: &mut TACKYContext,
     statement: &ASTStatement,
     variable_map: &mut HashMap<String, VariableMapEntry>,
@@ -137,7 +137,7 @@ pub fn resolve_statement(
     }
 }
 
-pub fn resolve_declaration(
+fn resolve_declaration(
     context: &mut TACKYContext,
     decl: &ASTVariableDeclaration,
     variable_map: &mut HashMap<String, VariableMapEntry>,
@@ -168,7 +168,7 @@ pub fn resolve_declaration(
     }
 }
 
-pub fn resolve_expr(
+fn resolve_expr(
     context: &mut TACKYContext, // technically this isn't used...
     expr: &ASTExpression,
     variable_map: &mut HashMap<String, VariableMapEntry>,
@@ -241,7 +241,9 @@ pub fn annotate_block(
             ASTBlockItem::Statement(statement) => {
                 annotate_statement(context, statement, current_label);
             }
-            _ => {}
+            ASTBlockItem::VariableDeclaration(decl) => {
+                annotate_declaration(context, decl, current_label);
+            }
         }
     }
 }
@@ -252,6 +254,19 @@ pub fn annotate_statement(
     current_label: Option<&str>,
 ) {
     match statement {
+        ASTStatement::Return(expr) => {
+            annotate_expr(context, expr, current_label);
+        }
+        ASTStatement::If(condition, then, or_else) => {
+            annotate_expr(context, condition, current_label);
+            annotate_statement(context, &mut *then, current_label);
+            or_else
+                .as_mut()
+                .map(|else_stmt| annotate_statement(context, else_stmt, current_label));
+        }
+        ASTStatement::Expression(expr) => {
+            annotate_expr(context, expr, current_label);
+        }
         ASTStatement::Compound(block) => {
             annotate_block(context, block, current_label);
         }
@@ -295,6 +310,45 @@ pub fn annotate_statement(
                 panic!("Continue used outside of loop context.")
             }
         },
+        ASTStatement::Null => {}
+    }
+}
+
+fn annotate_declaration(
+    context: &mut TACKYContext,
+    decl: &mut ASTVariableDeclaration,
+    current_label: Option<&str>,
+) {
+    match &mut decl.init {
+        Some(expr) => Some(annotate_expr(context, expr, current_label)),
+        None => None,
+    };
+}
+
+fn annotate_expr(
+    context: &mut TACKYContext,
+    expr: &mut ASTExpression,
+    current_label: Option<&str>,
+) {
+    match expr {
+        ASTExpression::Assignment(left, right) => {
+            annotate_expr(context, left, current_label);
+            annotate_expr(context, right, current_label);
+        }
+
+        ASTExpression::Conditional(condition, then, or_else) => {
+            annotate_expr(context, condition, current_label);
+            annotate_expr(context, then, current_label);
+            annotate_expr(context, or_else, current_label);
+        }
+
+        ASTExpression::UnaryOperation(op, operated_on_expr) => {
+            annotate_expr(context, operated_on_expr, current_label);
+        }
+        ASTExpression::BinaryOperation(op, left_expr, right_expr) => {
+            annotate_expr(context, left_expr, current_label);
+            annotate_expr(context, right_expr, current_label);
+        }
         _ => {}
     }
 }
