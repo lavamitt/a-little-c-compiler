@@ -6,7 +6,7 @@ const INDENT: &str = "    ";
 
 pub fn emit_code(program: AssemblyProgram) -> String {
     let mut assembly = String::new();
-    let function = emit_function(&program.function, &mut assembly);
+    emit_function(&program.function, &mut assembly);
     add_epilogue(&mut assembly);
     assembly
 }
@@ -85,7 +85,6 @@ fn emit_instructions(instructions: &[AssemblyInstruction], assembly: &mut String
                 assembly.push_str(&format!("{}popq %rbp\n", INDENT));
                 assembly.push_str(&format!("{}retq\n", INDENT));
             }
-            _ => panic!("Found unknown instruction"),
         };
     }
 }

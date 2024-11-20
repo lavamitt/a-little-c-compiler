@@ -277,6 +277,7 @@ pub fn annotate_statement(
             *label = Some(new_label.clone());
 
             annotate_statement(context, body, Some(new_label.as_str()));
+            annotate_expr(context, condition, Some(new_label.as_str()));
         }
         ASTStatement::While(condition, body, label) => {
             let new_label = &context
@@ -284,6 +285,7 @@ pub fn annotate_statement(
                 .make_labels_at_same_counter(vec!["do_while_".to_string()])[0];
             *label = Some(new_label.clone());
 
+            annotate_expr(context, condition, Some(new_label.as_str()));
             annotate_statement(context, body, Some(new_label.as_str()));
         }
         ASTStatement::For(init, condition, post, body, label) => {
@@ -291,6 +293,21 @@ pub fn annotate_statement(
                 .helper
                 .make_labels_at_same_counter(vec!["do_while_".to_string()])[0];
             *label = Some(new_label.clone());
+
+            match init {
+                ASTForInit::InitDecl(decl) => {
+                    annotate_declaration(context, decl, Some(new_label.as_str()))
+                }
+                ASTForInit::InitExpr(maybe_expr) => match maybe_expr {
+                    Some(expr) => annotate_expr(context, expr, Some(new_label.as_str())),
+                    None => {}
+                },
+            };
+            condition
+                .as_mut()
+                .map(|cond_expr| annotate_expr(context, cond_expr, Some(new_label.as_str())));
+            post.as_mut()
+                .map(|post_expr| annotate_expr(context, post_expr, Some(new_label.as_str())));
 
             annotate_statement(context, body, Some(new_label.as_str()));
         }
@@ -342,10 +359,10 @@ fn annotate_expr(
             annotate_expr(context, or_else, current_label);
         }
 
-        ASTExpression::UnaryOperation(op, operated_on_expr) => {
+        ASTExpression::UnaryOperation(_, operated_on_expr) => {
             annotate_expr(context, operated_on_expr, current_label);
         }
-        ASTExpression::BinaryOperation(op, left_expr, right_expr) => {
+        ASTExpression::BinaryOperation(_, left_expr, right_expr) => {
             annotate_expr(context, left_expr, current_label);
             annotate_expr(context, right_expr, current_label);
         }

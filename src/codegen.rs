@@ -209,7 +209,6 @@ fn codegen_body(instructions: &Vec<TACKYInstruction>) -> Vec<AssemblyInstruction
                 assembly_instructions.push(AssemblyInstruction::Mov(operand, ret_reg));
                 assembly_instructions.push(AssemblyInstruction::Ret);
             }
-            _ => panic!("Found unknown TACKYInstruction type"),
         };
     }
     assembly_instructions

@@ -405,7 +405,6 @@ fn tackygen_expression(
             ));
             dst
         }
-        _ => panic!("Found unknown expression"),
     };
 
     operand
@@ -416,7 +415,6 @@ fn convert_unop(ast_unop: ASTUnaryOperator) -> TACKYUnaryOperator {
         ASTUnaryOperator::Negation => TACKYUnaryOperator::Negate,
         ASTUnaryOperator::BitwiseComplement => TACKYUnaryOperator::Complement,
         ASTUnaryOperator::Not => TACKYUnaryOperator::Not,
-        _ => panic!("Found unimplemented unary operator"),
     }
 }
 
