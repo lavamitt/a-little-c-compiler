@@ -296,9 +296,14 @@ where
         }
         Some(&Token::BreakKeyword) => {
             tokens.next();
+            expect_token(tokens.next(), &Token::Semicolon);
             (ASTStatement::Break(None), tokens)
         }
-        Some(&Token::ContinueKeyword) => (ASTStatement::Continue(None), tokens),
+        Some(&Token::ContinueKeyword) => {
+            tokens.next();
+            expect_token(tokens.next(), &Token::Semicolon);
+            (ASTStatement::Continue(None), tokens)
+        }
         Some(&Token::Semicolon) => {
             tokens.next();
             (ASTStatement::Null, tokens)
