@@ -1,8 +1,8 @@
 use core::panic;
 
 use crate::parser::{
-    ASTBinaryOperator, ASTBlock, ASTBlockItem, ASTExpression, ASTFunctionDefinition, ASTProgram,
-    ASTStatement, ASTUnaryOperator, ASTVariableDeclaration, ASTForInit
+    ASTBinaryOperator, ASTBlock, ASTBlockItem, ASTExpression, ASTForInit, ASTFunctionDefinition,
+    ASTProgram, ASTStatement, ASTUnaryOperator, ASTVariableDeclaration,
 };
 
 #[derive(Debug, Clone)]
@@ -191,7 +191,8 @@ fn tackygen_statement(
         }
 
         ASTStatement::DoWhile(body, condition, label) => {
-            let do_while_label = label.unwrap_or_else(|| panic!("Expected do while loop to be labeled."));
+            let do_while_label =
+                label.unwrap_or_else(|| panic!("Expected do while loop to be labeled."));
             let continue_label = format!("{}_{}", "continue", do_while_label);
             let break_label = format!("{}_{}", "break", do_while_label);
 
@@ -199,7 +200,10 @@ fn tackygen_statement(
             tackygen_statement(context, *body, instructions);
             instructions.push(TACKYInstruction::Label(continue_label));
             let condition_val = tackygen_expression(context, condition, instructions);
-            instructions.push(TACKYInstruction::JumpIfNotZero(condition_val, do_while_label));
+            instructions.push(TACKYInstruction::JumpIfNotZero(
+                condition_val,
+                do_while_label,
+            ));
             instructions.push(TACKYInstruction::Label(break_label));
         }
         ASTStatement::While(condition, body, label) => {
@@ -210,7 +214,10 @@ fn tackygen_statement(
             instructions.push(TACKYInstruction::Label(while_label)); // we don't need this.. but I like it for readability in the assembly
             instructions.push(TACKYInstruction::Label(continue_label.clone()));
             let condition_val = tackygen_expression(context, condition, instructions);
-            instructions.push(TACKYInstruction::JumpIfZero(condition_val, break_label.clone()));
+            instructions.push(TACKYInstruction::JumpIfZero(
+                condition_val,
+                break_label.clone(),
+            ));
             tackygen_statement(context, *body, instructions);
             instructions.push(TACKYInstruction::Jump(continue_label));
             instructions.push(TACKYInstruction::Label(break_label));
@@ -225,7 +232,10 @@ fn tackygen_statement(
             match condition {
                 Some(expr) => {
                     let conditional_val = tackygen_expression(context, expr, instructions);
-                    instructions.push(TACKYInstruction::JumpIfZero(conditional_val, break_label.clone()));
+                    instructions.push(TACKYInstruction::JumpIfZero(
+                        conditional_val,
+                        break_label.clone(),
+                    ));
                 }
                 None => {}
             }
@@ -244,12 +254,12 @@ fn tackygen_statement(
             let for_label = label.unwrap_or_else(|| panic!("Expected break to be labeled."));
             let break_label = format!("{}_{}", "break", for_label);
             instructions.push(TACKYInstruction::Jump(break_label));
-        },
+        }
         ASTStatement::Continue(label) => {
             let for_label = label.unwrap_or_else(|| panic!("Expected continue to be labeled."));
             let continue_label = format!("{}_{}", "continue", for_label);
             instructions.push(TACKYInstruction::Jump(continue_label));
-        },
+        }
         ASTStatement::Null => {}
     }
 }
@@ -263,14 +273,12 @@ fn tackygen_for_init(
         ASTForInit::InitDecl(decl) => {
             tackygen_declaration(context, decl, instructions);
         }
-        ASTForInit::InitExpr(expr) => {
-            match expr {
-                Some(inner_expr) => {
-                    tackygen_expression(context, inner_expr, instructions);
-                }
-                None => {}
+        ASTForInit::InitExpr(expr) => match expr {
+            Some(inner_expr) => {
+                tackygen_expression(context, inner_expr, instructions);
             }
-        }
+            None => {}
+        },
     }
 }
 
