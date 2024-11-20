@@ -237,7 +237,6 @@ pub fn annotate_block(
     current_label: Option<&str>,
 ) {
     for item in &mut block.items {
-        // Change to &mut
         match item {
             ASTBlockItem::Statement(statement) => {
                 annotate_statement(context, statement, current_label);
