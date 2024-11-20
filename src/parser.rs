@@ -44,17 +44,23 @@ pub enum ASTStatement {
     If(ASTExpression, Box<ASTStatement>, Option<Box<ASTStatement>>), // condition, then, else
     Compound(ASTBlock),
     DoWhile(Box<ASTStatement>, ASTExpression, Option<String>), // body, condition, label
-    While(ASTExpression, Box<ASTStatement>, Option<String>), // condition, body, label
-    For(ASTForInit, Option<ASTExpression>, Option<ASTExpression>, Box<ASTStatement>, Option<String>), // init, condition, post, body, label
-    Break(Option<String>), // label
-    Continue(Option<String>), // label
+    While(ASTExpression, Box<ASTStatement>, Option<String>),   // condition, body, label
+    For(
+        ASTForInit,
+        Option<ASTExpression>,
+        Option<ASTExpression>,
+        Box<ASTStatement>,
+        Option<String>,
+    ), // init, condition, post, body, label
+    Break(Option<String>),                                     // label
+    Continue(Option<String>),                                  // label
     Null,
 }
 
 #[derive(Debug, Clone)]
 pub enum ASTForInit {
     InitDecl(ASTVariableDeclaration),
-    InitExpr(Option<ASTExpression>)
+    InitExpr(Option<ASTExpression>),
 }
 
 #[derive(Debug, Clone)]
@@ -261,7 +267,10 @@ where
                 }
             };
             let (body, tokens) = parse_statement(tokens);
-            (ASTStatement::For(init, condition, post, Box::new(body), None), tokens)
+            (
+                ASTStatement::For(init, condition, post, Box::new(body), None),
+                tokens,
+            )
         }
 
         Some(&Token::WhileKeyword) => {
@@ -280,15 +289,16 @@ where
             let (condition, mut tokens) = parse_expr(tokens, 0);
             expect_token(tokens.next(), &Token::CloseParen);
             expect_token(tokens.next(), &Token::Semicolon);
-            (ASTStatement::DoWhile(Box::new(body), condition, None), tokens)
+            (
+                ASTStatement::DoWhile(Box::new(body), condition, None),
+                tokens,
+            )
         }
         Some(&Token::BreakKeyword) => {
             tokens.next();
             (ASTStatement::Break(None), tokens)
         }
-        Some(&Token::ContinueKeyword) => {
-            (ASTStatement::Continue(None), tokens)
-        }
+        Some(&Token::ContinueKeyword) => (ASTStatement::Continue(None), tokens),
         Some(&Token::Semicolon) => {
             tokens.next();
             (ASTStatement::Null, tokens)

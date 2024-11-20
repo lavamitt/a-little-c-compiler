@@ -1,11 +1,9 @@
 use crate::parser::{
-    ASTBlock, ASTBlockItem, ASTExpression, ASTFunctionDefinition, ASTProgram, ASTStatement,
-    ASTVariableDeclaration, ASTForInit
+    ASTBlock, ASTBlockItem, ASTExpression, ASTForInit, ASTFunctionDefinition, ASTProgram,
+    ASTStatement, ASTVariableDeclaration,
 };
 use crate::tackygen::TACKYContext;
 use std::collections::HashMap;
-
-
 
 #[derive(Debug, Clone)]
 struct VariableMapEntry {
@@ -16,10 +14,11 @@ struct VariableMapEntry {
 pub fn semantic_pass(context: &mut TACKYContext, program: ASTProgram) -> ASTProgram {
     // resolve variables
     let mut variable_map: HashMap<String, VariableMapEntry> = HashMap::new();
-    let resolved_function_body = resolve_block(context, &program.function.body, &mut variable_map);
+    let mut resolved_function_body =
+        resolve_block(context, &program.function.body, &mut variable_map);
 
     // annotate labels
-    let annotated_and_resolved_body = annotate_block(context, resolved_function_body, &mut variable_map);
+    annotate_block(context, &mut resolved_function_body, None);
 
     ASTProgram {
         function: ASTFunctionDefinition {
@@ -97,28 +96,40 @@ pub fn resolve_statement(
         ASTStatement::For(init, condition, post, body, label) => {
             let mut new_scope_variable_map = copy_variable_map(variable_map);
             let resolved_for_init = match init {
-                ASTForInit::InitDecl(decl) => ASTForInit::InitDecl(resolve_declaration(context, decl, &mut new_scope_variable_map)),
-                ASTForInit::InitExpr(maybe_expr) => {
-                    match maybe_expr {
-                        Some(expr) => ASTForInit::InitExpr(Some(resolve_expr(context, expr, &mut new_scope_variable_map))),
-                        None => ASTForInit::InitExpr(None)
-                    }
-                }
+                ASTForInit::InitDecl(decl) => ASTForInit::InitDecl(resolve_declaration(
+                    context,
+                    decl,
+                    &mut new_scope_variable_map,
+                )),
+                ASTForInit::InitExpr(maybe_expr) => match maybe_expr {
+                    Some(expr) => ASTForInit::InitExpr(Some(resolve_expr(
+                        context,
+                        expr,
+                        &mut new_scope_variable_map,
+                    ))),
+                    None => ASTForInit::InitExpr(None),
+                },
             };
 
             let resolved_condition = match condition {
                 Some(expr) => Some(resolve_expr(context, expr, &mut new_scope_variable_map)),
-                None => None
+                None => None,
             };
 
             let resolved_post = match post {
                 Some(expr) => Some(resolve_expr(context, expr, &mut new_scope_variable_map)),
-                None => None
+                None => None,
             };
 
             let resolved_body = resolve_statement(context, body, &mut new_scope_variable_map);
 
-            ASTStatement::For(resolved_for_init, resolved_condition, resolved_post, Box::new(resolved_body), label.clone())
+            ASTStatement::For(
+                resolved_for_init,
+                resolved_condition,
+                resolved_post,
+                Box::new(resolved_body),
+                label.clone(),
+            )
         }
         ASTStatement::Break(label) => ASTStatement::Break(label.clone()),
         ASTStatement::Continue(label) => ASTStatement::Continue(label.clone()),
@@ -222,25 +233,69 @@ fn copy_variable_map(
 
 pub fn annotate_block(
     context: &mut TACKYContext,
-    block: &ASTBlock,
-    current_label: Option<&str>
-) -> ASTBlock {
-    let mut resolved_block_items: Vec<ASTBlockItem> = Vec::new();
-
-    for item in &block.items {
+    block: &mut ASTBlock, // Change to &mut
+    current_label: Option<&str>,
+) {
+    for item in &mut block.items {
+        // Change to &mut
         match item {
             ASTBlockItem::Statement(statement) => {
-                let resolved_statement = annotate_statement(context, &statement, current_label);
-                resolved_block_items.push(ASTBlockItem::Statement(resolved_statement))
+                annotate_statement(context, statement, current_label);
             }
-            ASTBlockItem::VariableDeclaration(decl) => {
-                let resolved_declaration = annotate_declaration(context, &decl, current_label);
-                resolved_block_items.push(ASTBlockItem::VariableDeclaration(resolved_declaration))
-            }
+            _ => {}
         }
     }
+}
 
-    ASTBlock {
-        items: resolved_block_items,
+pub fn annotate_statement(
+    context: &mut TACKYContext,
+    statement: &mut ASTStatement,
+    current_label: Option<&str>,
+) {
+    match statement {
+        ASTStatement::Compound(block) => {
+            annotate_block(context, block, current_label);
+        }
+        ASTStatement::DoWhile(body, condition, label) => {
+            let new_label = &context
+                .helper
+                .make_labels_at_same_counter(vec!["do_while_".to_string()])[0];
+            *label = Some(new_label.clone());
+
+            annotate_statement(context, body, Some(new_label.as_str()));
+        }
+        ASTStatement::While(condition, body, label) => {
+            let new_label = &context
+                .helper
+                .make_labels_at_same_counter(vec!["do_while_".to_string()])[0];
+            *label = Some(new_label.clone());
+
+            annotate_statement(context, body, Some(new_label.as_str()));
+        }
+        ASTStatement::For(init, condition, post, body, label) => {
+            let new_label = &context
+                .helper
+                .make_labels_at_same_counter(vec!["do_while_".to_string()])[0];
+            *label = Some(new_label.clone());
+
+            annotate_statement(context, body, Some(new_label.as_str()));
+        }
+        ASTStatement::Break(label) => match current_label {
+            Some(new_label) => {
+                *label = Some(new_label.to_string());
+            }
+            None => {
+                panic!("Break used outside of loop context.")
+            }
+        },
+        ASTStatement::Continue(label) => match current_label {
+            Some(new_label) => {
+                *label = Some(new_label.to_string());
+            }
+            None => {
+                panic!("Continue used outside of loop context.")
+            }
+        },
+        _ => {}
     }
 }

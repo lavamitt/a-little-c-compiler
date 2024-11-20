@@ -1,8 +1,8 @@
 use core::panic;
 
 use crate::parser::{
-    ASTBinaryOperator, ASTBlockItem, ASTExpression, ASTFunctionDefinition, ASTProgram,
-    ASTStatement, ASTUnaryOperator, ASTVariableDeclaration, ASTBlock
+    ASTBinaryOperator, ASTBlock, ASTBlockItem, ASTExpression, ASTFunctionDefinition, ASTProgram,
+    ASTStatement, ASTUnaryOperator, ASTVariableDeclaration,
 };
 
 #[derive(Debug, Clone)]
@@ -110,11 +110,14 @@ fn tackygen_function(
     // just in case the function did not provide a return statement
     instructions.push(TACKYInstruction::Return(TACKYVal::Constant(0)));
 
-
     TACKYFunctionDefinition { name, instructions }
 }
 
-fn tackygen_block(context: &mut TACKYContext, block: ASTBlock, instructions: &mut Vec<TACKYInstruction>) {
+fn tackygen_block(
+    context: &mut TACKYContext,
+    block: ASTBlock,
+    instructions: &mut Vec<TACKYInstruction>,
+) {
     for item in block.items {
         match item {
             ASTBlockItem::Statement(statement) => {
@@ -181,7 +184,7 @@ fn tackygen_statement(
         }
         ASTStatement::Compound(block) => {
             tackygen_block(context, block, instructions);
-        }  
+        }
         ASTStatement::Return(expr) => {
             let return_val = tackygen_expression(context, expr, instructions);
             instructions.push(TACKYInstruction::Return(return_val));
