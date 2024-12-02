@@ -1,6 +1,6 @@
 use crate::lexer::Token;
-use std::iter::Peekable;
 use itertools::peek_nth;
+use std::iter::Peekable;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ASTUnaryOperator {
@@ -36,7 +36,7 @@ pub enum ASTExpression {
     BinaryOperation(ASTBinaryOperator, Box<ASTExpression>, Box<ASTExpression>),
     Assignment(Box<ASTExpression>, Box<ASTExpression>), // lvalue = expression
     Conditional(Box<ASTExpression>, Box<ASTExpression>, Box<ASTExpression>), // condition, then, else
-    FunctionCall(String, Vec<ASTExpression>) // identifier, args
+    FunctionCall(String, Vec<ASTExpression>),                                // identifier, args
 }
 
 #[derive(Debug, Clone)]
@@ -75,7 +75,7 @@ pub struct ASTVariableDeclaration {
 pub enum ASTBlockItem {
     Statement(ASTStatement),
     VariableDeclaration(ASTVariableDeclaration),
-    FunctionDeclaration(ASTFunctionDeclaration)
+    FunctionDeclaration(ASTFunctionDeclaration),
 }
 
 #[derive(Debug, Clone)]
@@ -106,13 +106,15 @@ where
         functions.push(function);
         tokens = _tokens;
     }
-    
+
     ASTProgram { functions }
 }
 
 // <function> ::= "int" <identifier> "(" <param-list> ")" ( <block> | ";")
 // <param-list> ::= "void" | "int" <identifier> { "," "int" <identifier> }
-fn parse_function_declaration<'a, I>(mut tokens: Peekable<I>) -> (ASTFunctionDeclaration, Peekable<I>)
+fn parse_function_declaration<'a, I>(
+    mut tokens: Peekable<I>,
+) -> (ASTFunctionDeclaration, Peekable<I>)
 where
     I: Iterator<Item = &'a Token>,
 {
@@ -134,14 +136,14 @@ where
                 _ => panic!("Argument name must be a string literal"),
             };
             args.push(identifier);
-    
+
             if tokens.peek() == Some(&&Token::CloseParen) {
                 break;
             }
             expect_token(tokens.next(), &Token::Comma);
         }
     }
-    
+
     expect_token(tokens.next(), &Token::CloseParen);
 
     let mut function_body = None;
@@ -152,7 +154,7 @@ where
         function_body = Some(_body);
         tokens = _tokens;
     }
-    
+
     (
         ASTFunctionDeclaration {
             name: identifier,
@@ -207,7 +209,9 @@ where
 }
 
 // <variable_declaration> ::= "int" <identifier> [ "=" <exp> ] ";"
-fn parse_variable_declaration<'a, I>(mut tokens: Peekable<I>) -> (ASTVariableDeclaration, Peekable<I>)
+fn parse_variable_declaration<'a, I>(
+    mut tokens: Peekable<I>,
+) -> (ASTVariableDeclaration, Peekable<I>)
 where
     I: Iterator<Item = &'a Token>,
 {

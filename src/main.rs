@@ -12,11 +12,11 @@ use crate::parser::parse_program;
 use crate::semantic_analysis::semantic_pass;
 use crate::tackygen::tackygen;
 use crate::tackygen::TACKYContext;
+use itertools::peek_nth;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use itertools::peek_nth;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Stage {
