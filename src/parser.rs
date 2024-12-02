@@ -1,5 +1,6 @@
 use crate::lexer::Token;
 use std::iter::Peekable;
+use itertools::peek_nth;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ASTUnaryOperator {
@@ -35,6 +36,7 @@ pub enum ASTExpression {
     BinaryOperation(ASTBinaryOperator, Box<ASTExpression>, Box<ASTExpression>),
     Assignment(Box<ASTExpression>, Box<ASTExpression>), // lvalue = expression
     Conditional(Box<ASTExpression>, Box<ASTExpression>, Box<ASTExpression>), // condition, then, else
+    FunctionCall(String, Vec<ASTExpression>) // identifier, args
 }
 
 #[derive(Debug, Clone)]
@@ -73,6 +75,7 @@ pub struct ASTVariableDeclaration {
 pub enum ASTBlockItem {
     Statement(ASTStatement),
     VariableDeclaration(ASTVariableDeclaration),
+    FunctionDeclaration(ASTFunctionDeclaration)
 }
 
 #[derive(Debug, Clone)]
@@ -81,27 +84,35 @@ pub struct ASTBlock {
 }
 
 #[derive(Debug, Clone)]
-pub struct ASTFunctionDefinition {
+pub struct ASTFunctionDeclaration {
     pub name: String,
-    pub body: ASTBlock,
+    pub args: Vec<String>,
+    pub body: Option<ASTBlock>,
 }
 
 #[derive(Debug)]
 pub struct ASTProgram {
-    pub function: ASTFunctionDefinition,
+    pub functions: Vec<ASTFunctionDeclaration>,
 }
 
 // <program> ::= <function>
-pub fn parse_program<'a, I>(tokens: Peekable<I>) -> ASTProgram
+pub fn parse_program<'a, I>(mut tokens: Peekable<I>) -> ASTProgram
 where
     I: Iterator<Item = &'a Token>,
 {
-    let (function, _) = parse_function(tokens);
-    ASTProgram { function }
+    let mut functions: Vec<ASTFunctionDeclaration> = Vec::new();
+    while tokens.peek().is_some() {
+        let (function, _tokens) = parse_function_declaration(tokens);
+        functions.push(function);
+        tokens = _tokens;
+    }
+    
+    ASTProgram { functions }
 }
 
-// <function> ::= "int" <identifier> "(" "void" ")" "{" <block> "}"
-fn parse_function<'a, I>(mut tokens: Peekable<I>) -> (ASTFunctionDefinition, Peekable<I>)
+// <function> ::= "int" <identifier> "(" <param-list> ")" ( <block> | ";")
+// <param-list> ::= "void" | "int" <identifier> { "," "int" <identifier> }
+fn parse_function_declaration<'a, I>(mut tokens: Peekable<I>) -> (ASTFunctionDeclaration, Peekable<I>)
 where
     I: Iterator<Item = &'a Token>,
 {
@@ -111,19 +122,41 @@ where
         _ => panic!("Function name must be a string literal"),
     };
     expect_token(tokens.next(), &Token::OpenParen);
-    expect_token(tokens.next(), &Token::Identifier("void".to_string()));
+
+    let mut args: Vec<String> = Vec::new();
+    if tokens.peek() == Some(&&Token::Identifier("void".to_string())) {
+        tokens.next(); // eat up void
+    } else {
+        loop {
+            expect_token(tokens.next(), &Token::IntKeyword);
+            let identifier = match tokens.next() {
+                Some(Token::Identifier(function_name)) => function_name.to_string(),
+                _ => panic!("Argument name must be a string literal"),
+            };
+            args.push(identifier);
+    
+            if tokens.peek() == Some(&&Token::CloseParen) {
+                break;
+            }
+            expect_token(tokens.next(), &Token::Comma);
+        }
+    }
+    
     expect_token(tokens.next(), &Token::CloseParen);
 
-    let (function_body, mut tokens) = parse_block(tokens);
-
-    // Check for remaining tokens
-    if tokens.next().is_some() {
-        panic!("Unexpected tokens after function definition");
+    let mut function_body = None;
+    if tokens.peek() == Some(&&Token::Semicolon) {
+        tokens.next(); // eat the semicolon
+    } else {
+        let (_body, _tokens) = parse_block(tokens);
+        function_body = Some(_body);
+        tokens = _tokens;
     }
-
+    
     (
-        ASTFunctionDefinition {
+        ASTFunctionDeclaration {
             name: identifier,
+            args,
             body: function_body,
         },
         tokens,
@@ -153,22 +186,28 @@ where
     (ASTBlock { items }, tokens)
 }
 
-// <block-item> ::= <statement> | <declaration>
+// <block-item> ::= <statement> | <variable_declaration> | <function_declaration>
 fn parse_block_item<'a, I>(mut tokens: Peekable<I>) -> (ASTBlockItem, Peekable<I>)
 where
     I: Iterator<Item = &'a Token>,
 {
     if tokens.peek() == Some(&&Token::IntKeyword) {
-        let (declaration, tokens) = parse_declaration(tokens);
-        (ASTBlockItem::VariableDeclaration(declaration), tokens)
+        let mut nth_token_iter = peek_nth(tokens);
+        if nth_token_iter.peek_nth(2) == Some(&&Token::OpenParen) {
+            let (declaration, tokens) = parse_function_declaration(tokens);
+            (ASTBlockItem::FunctionDeclaration(declaration), tokens)
+        } else {
+            let (declaration, tokens) = parse_variable_declaration(tokens);
+            (ASTBlockItem::VariableDeclaration(declaration), tokens)
+        }
     } else {
         let (statement, tokens) = parse_statement(tokens);
         (ASTBlockItem::Statement(statement), tokens)
     }
 }
 
-// <declaration> ::= "int" <identifier> [ "=" <exp> ] ";"
-fn parse_declaration<'a, I>(mut tokens: Peekable<I>) -> (ASTVariableDeclaration, Peekable<I>)
+// <variable_declaration> ::= "int" <identifier> [ "=" <exp> ] ";"
+fn parse_variable_declaration<'a, I>(mut tokens: Peekable<I>) -> (ASTVariableDeclaration, Peekable<I>)
 where
     I: Iterator<Item = &'a Token>,
 {
@@ -322,7 +361,7 @@ where
 {
     match tokens.peek() {
         Some(&Token::IntKeyword) => {
-            let (decl, tokens) = parse_declaration(tokens);
+            let (decl, tokens) = parse_variable_declaration(tokens);
             (ASTForInit::InitDecl(decl), tokens)
         }
         Some(&Token::Semicolon) => {
@@ -430,6 +469,7 @@ fn precedence(binary_op: &ASTBinaryOperator) -> u32 {
 }
 
 // <factor> ::= <int> | <identifier> | <unop> <factor> | "(" <exp> ")"
+// | <identifier> "(" [ <argument-list> ] ")"
 fn parse_factor<'a, I>(mut tokens: Peekable<I>) -> (ASTExpression, Peekable<I>)
 where
     I: Iterator<Item = &'a Token>,
@@ -463,7 +503,23 @@ where
         }
         Some(Token::Identifier(name)) => {
             tokens.next();
-            (ASTExpression::Var(name.clone()), tokens)
+
+            if tokens.peek() == Some(&&Token::OpenParen) {
+                let mut args: Vec<ASTExpression> = Vec::new();
+                loop {
+                    let (new_arg, _tokens) = parse_expr(tokens, 0);
+                    args.push(new_arg);
+                    tokens = _tokens;
+                    if tokens.peek() == Some(&&Token::CloseParen) {
+                        break;
+                    }
+                    expect_token(tokens.next(), &Token::Comma);
+                }
+
+                (ASTExpression::FunctionCall(name.clone(), args), tokens)
+            } else {
+                (ASTExpression::Var(name.clone()), tokens)
+            }
         }
         _ => panic!("Did not find a way to parse the expression"),
     }
