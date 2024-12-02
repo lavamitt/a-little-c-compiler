@@ -32,41 +32,50 @@ pub enum Stage {
 fn main() {
     let args: Vec<String> = env::args().collect();
 
-    let (stage, file_path) = parse_args(&args);
+    let (generate_object_file, stage, file_path) = parse_args(&args);
     let input_path = Path::new(&file_path);
     let preprocessed_path = preprocess_file(input_path);
     let code = fs::read_to_string(&preprocessed_path).unwrap();
 
-    match stage {
-        Some(stage) => run_up_to_stage(&code, input_path, stage),
-        None => run_all_stages(&code, input_path),
+
+    let maybe_assembly = match stage {
+        Some(stage) => run_up_to_stage(&code, stage),
+        None => run_all_stages(&code),
+    };
+
+    match maybe_assembly {
+        Some(assembly) => {
+            output_compiled_language(assembly, input_path, generate_object_file)
+        }
+        None => {}
     }
 
     fs::remove_file(preprocessed_path)
         .unwrap_or_else(|e| panic!("Failed to remove preprocessed file: {}", e));
 }
 
-fn parse_args(args: &[String]) -> (Option<Stage>, String) {
-    if args.len() < 2 {
-        panic!("Usage: program [--stage] <file_path>");
+fn parse_args(args: &[String]) -> (bool, Option<Stage>, String) {
+    if args.len() < 2 || args.len() > 4 {
+        panic!("Usage: program [-c] [--stage] <file_path>");
     }
 
-    if args.len() == 2 {
-        // No stage provided, run all stages
-        return (None, args[1].clone());
+    let mut stage = None;
+    let mut generate_object_file = false;
+
+    for arg in &args[1..args.len()-1] {
+        match arg.as_str() {
+            "--lex" => stage = Some(Stage::Lexing),
+            "--parse" => stage = Some(Stage::Parsing),
+            "--validate" => stage = Some(Stage::Validate),
+            "--tacky" => stage = Some(Stage::Tacky),
+            "--codegen" => stage = Some(Stage::Codegen),
+            "--emit" => stage = Some(Stage::CodeEmission),
+            "-c" => generate_object_file = true,
+            _ => panic!("Invalid stage argument"),
+        }
     }
 
-    let stage = match args[1].as_str() {
-        "--lex" => Some(Stage::Lexing),
-        "--parse" => Some(Stage::Parsing),
-        "--validate" => Some(Stage::Validate),
-        "--tacky" => Some(Stage::Tacky),
-        "--codegen" => Some(Stage::Codegen),
-        "--emit" => Some(Stage::CodeEmission),
-        _ => return panic!("Invalid stage argument"),
-    };
-
-    (stage, args[2].clone())
+    (generate_object_file, stage, args[2].clone())
 }
 
 fn preprocess_file(input_path: &Path) -> PathBuf {
@@ -87,6 +96,40 @@ fn preprocess_file(input_path: &Path) -> PathBuf {
     }
 
     preprocessed_path
+}
+
+fn output_compiled_language(assembly: String, input_path: &Path, generate_object_file: bool) {
+    let stem = input_path.file_stem().unwrap().to_str().unwrap();
+    let directory = input_path.parent().unwrap();
+    let output_assembly_path = directory.join(format!("{}_assembly.s", stem));
+    fs::write(&output_assembly_path, &assembly)
+        .unwrap_or_else(|e| panic!("Failed to write assembly file: {}", e));
+
+    let output_executable = directory.join(stem);
+    let mut gcc_command = Command::new("gcc");
+    gcc_command 
+        .arg(&output_assembly_path)
+        .arg("-o")
+        .arg(&output_executable);
+
+    if generate_object_file {
+        gcc_command.arg("-c");
+    }
+
+    let gcc_output = gcc_command
+        .output()
+        .unwrap_or_else(|e| panic!("Failed to execute gcc: {}", e));
+
+    if gcc_output.status.success() {
+        println!("gcc executed successfully");
+        fs::remove_file(&output_assembly_path)
+            .unwrap_or_else(|e| panic!("Failed to remove assembly file: {}", e));
+    } else {
+        panic!(
+            "gcc failed to execute: {}",
+            String::from_utf8_lossy(&gcc_output.stderr)
+        );
+    }
 }
 
 fn run_lexer(code: &str) -> Vec<lexer::Token> {
@@ -132,62 +175,43 @@ fn run_codegen(code: &str) -> codegen::AssemblyProgram {
     codegen
 }
 
-fn run_code_emission(code: &str, input_path: &Path) {
+fn run_code_emission(code: &str) -> String {
     let codegen = run_codegen(code);
     let assembly = emit_code(codegen);
-
     println!("############## CODEEMISSION DEBUG INFO ##############");
     println!("{assembly}");
-
-    let stem = input_path.file_stem().unwrap().to_str().unwrap();
-    let directory = input_path.parent().unwrap();
-    let output_assembly_path = directory.join(format!("{}_assembly.s", stem));
-    fs::write(&output_assembly_path, &assembly)
-        .unwrap_or_else(|e| panic!("Failed to write assembly file: {}", e));
-
-    let output_executable = directory.join(stem);
-    let gcc_output = Command::new("gcc")
-        .arg(&output_assembly_path)
-        .arg("-o")
-        .arg(&output_executable)
-        .output()
-        .unwrap_or_else(|e| panic!("Failed to execute gcc: {}", e));
-
-    if gcc_output.status.success() {
-        println!("gcc executed successfully");
-        fs::remove_file(&output_assembly_path)
-            .unwrap_or_else(|e| panic!("Failed to remove assembly file: {}", e));
-    } else {
-        panic!(
-            "gcc failed to execute: {}",
-            String::from_utf8_lossy(&gcc_output.stderr)
-        );
-    }
+    assembly
 }
 
-fn run_up_to_stage(code: &str, input_path: &Path, stage: Stage) {
+fn run_up_to_stage(code: &str, stage: Stage) -> Option<String> {
     match stage {
         Stage::Lexing => {
             run_lexer(code);
+            None
         }
         Stage::Parsing => {
             run_parser(code);
+            None
         }
         Stage::Validate => {
             run_validate(code);
+            None
         }
         Stage::Tacky => {
             run_tackygen(code);
+            None
         }
         Stage::Codegen => {
             run_codegen(code);
+            None
         }
         Stage::CodeEmission => {
-            run_code_emission(code, input_path);
+            let assembly = run_code_emission(code);
+            Some(assembly)
         }
     }
 }
 
-fn run_all_stages(code: &str, input_path: &Path) {
-    run_up_to_stage(code, input_path, Stage::CodeEmission);
+fn run_all_stages(code: &str) -> Option<String> {
+    run_up_to_stage(code, Stage::CodeEmission)
 }
