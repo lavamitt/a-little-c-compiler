@@ -37,16 +37,13 @@ fn main() {
     let preprocessed_path = preprocess_file(input_path);
     let code = fs::read_to_string(&preprocessed_path).unwrap();
 
-
     let maybe_assembly = match stage {
         Some(stage) => run_up_to_stage(&code, stage),
         None => run_all_stages(&code),
     };
 
     match maybe_assembly {
-        Some(assembly) => {
-            output_compiled_language(assembly, input_path, generate_object_file)
-        }
+        Some(assembly) => output_compiled_language(assembly, input_path, generate_object_file),
         None => {}
     }
 
@@ -62,7 +59,7 @@ fn parse_args(args: &[String]) -> (bool, Option<Stage>, String) {
     let mut stage = None;
     let mut generate_object_file = false;
 
-    for arg in &args[1..args.len()-1] {
+    for arg in &args[1..args.len() - 1] {
         match arg.as_str() {
             "--lex" => stage = Some(Stage::Lexing),
             "--parse" => stage = Some(Stage::Parsing),
@@ -107,7 +104,7 @@ fn output_compiled_language(assembly: String, input_path: &Path, generate_object
 
     let output_executable = directory.join(stem);
     let mut gcc_command = Command::new("gcc");
-    gcc_command 
+    gcc_command
         .arg(&output_assembly_path)
         .arg("-o")
         .arg(&output_executable);
