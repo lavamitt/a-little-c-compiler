@@ -548,7 +548,10 @@ fn typecheck_function_declaration(symbols: &mut SymbolTable, decl: &ASTFunctionD
         Some(existing_symbol_type) => {
             if let SymbolType::Func(existing_num_args, existing_defined) = existing_symbol_type {
                 if num_args != *existing_num_args {
-                    panic!("Function redeclared with different number of arguments: {:?}", &decl.name);
+                    panic!(
+                        "Function redeclared with different number of arguments: {:?}",
+                        &decl.name
+                    );
                 }
                 if is_defined && *existing_defined {
                     panic!("Function is defined more than once: {:?}", &decl.name);
