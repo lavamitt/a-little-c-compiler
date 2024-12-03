@@ -1,18 +1,18 @@
 mod codeemission;
 mod codegen;
+mod global_context;
 mod lexer;
 mod parser;
 mod semantic_analysis;
 mod tackygen;
-mod global_context;
 
 use crate::codeemission::emit_code;
 use crate::codegen::codegen;
+use crate::global_context::CompilerContext;
 use crate::lexer::Lexer;
 use crate::parser::parse_program;
 use crate::semantic_analysis::semantic_pass;
 use crate::tackygen::tackygen;
-use crate::global_context::CompilerContext;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};

@@ -1,10 +1,10 @@
 use core::panic;
 
+use crate::global_context::CompilerContext;
 use crate::parser::{
     ASTBinaryOperator, ASTBlock, ASTBlockItem, ASTExpression, ASTForInit, ASTFunctionDeclaration,
     ASTProgram, ASTStatement, ASTUnaryOperator, ASTVariableDeclaration,
 };
-use crate::global_context::CompilerContext;
 
 #[derive(Debug, Clone)]
 pub enum TACKYVal {

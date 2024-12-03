@@ -24,12 +24,12 @@ impl HelperFunctions {
 #[derive(Debug, Clone)]
 pub enum SymbolType {
     Int,
-    Func(u32, bool) // number of params, defined
+    Func(u32, bool), // number of params, defined
 }
 
 pub struct CompilerContext {
     pub helper: HelperFunctions,
-    pub symbol_table: HashMap<String, SymbolType>
+    pub symbol_table: HashMap<String, SymbolType>,
 }
 
 impl CompilerContext {
@@ -39,7 +39,7 @@ impl CompilerContext {
                 tmp_register_counter: 0,
                 label_counter: 0,
             },
-            symbol_table: HashMap::new()
+            symbol_table: HashMap::new(),
         }
     }
 }

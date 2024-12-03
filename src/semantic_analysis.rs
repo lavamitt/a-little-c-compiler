@@ -24,9 +24,6 @@ pub fn semantic_pass(context: &mut CompilerContext, program: ASTProgram) -> ASTP
         resolved_functions.push(resolved_function);
     }
 
-
-
-
     // annotate labels
     for function in &mut resolved_functions {
         if let Some(ref mut body) = function.body {
