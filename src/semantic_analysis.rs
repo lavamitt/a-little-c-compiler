@@ -24,6 +24,9 @@ pub fn semantic_pass(context: &mut CompilerContext, program: ASTProgram) -> ASTP
         resolved_functions.push(resolved_function);
     }
 
+
+
+
     // annotate labels
     for function in &mut resolved_functions {
         if let Some(ref mut body) = function.body {
@@ -323,7 +326,10 @@ pub fn annotate_block(
                 annotate_statement(context, statement, current_label);
             }
             ASTBlockItem::VariableDeclaration(decl) => {
-                annotate_declaration(context, decl, current_label);
+                annotate_variable_declaration(context, decl, current_label);
+            }
+            ASTBlockItem::FunctionDeclaration(decl) => {
+                annotate_function_declaration(context, decl, current_label);
             }
         }
     }
@@ -377,7 +383,7 @@ pub fn annotate_statement(
 
             match init {
                 ASTForInit::InitDecl(decl) => {
-                    annotate_declaration(context, decl, Some(new_label.as_str()))
+                    annotate_variable_declaration(context, decl, Some(new_label.as_str()))
                 }
                 ASTForInit::InitExpr(maybe_expr) => match maybe_expr {
                     Some(expr) => annotate_expr(context, expr, Some(new_label.as_str())),
@@ -412,13 +418,24 @@ pub fn annotate_statement(
     }
 }
 
-fn annotate_declaration(
+fn annotate_variable_declaration(
     context: &mut CompilerContext,
     decl: &mut ASTVariableDeclaration,
     current_label: Option<&str>,
 ) {
     match &mut decl.init {
         Some(expr) => Some(annotate_expr(context, expr, current_label)),
+        None => None,
+    };
+}
+
+fn annotate_function_declaration(
+    context: &mut CompilerContext,
+    decl: &mut ASTFunctionDeclaration,
+    current_label: Option<&str>,
+) {
+    match &mut decl.body {
+        Some(body) => Some(annotate_block(context, body, current_label)),
         None => None,
     };
 }
