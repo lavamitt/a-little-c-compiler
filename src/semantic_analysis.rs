@@ -20,17 +20,8 @@ pub fn semantic_pass(context: &mut TACKYContext, program: ASTProgram) -> ASTProg
     let mut resolved_functions: Vec<ASTFunctionDeclaration> = Vec::new();
 
     for function in program.functions {
-        if function.body.is_some() {
-            let resolved_function_body =
-                resolve_block(context, &function.body.unwrap(), &mut variable_map);
-            resolved_functions.push(ASTFunctionDeclaration {
-                name: function.name,
-                args: function.args,
-                body: Some(resolved_function_body),
-            })
-        } else {
-            resolved_functions.push(function)
-        }
+        let resolved_function = resolve_function_declaration(context, &function, &mut variable_map);
+        resolved_functions.push(resolved_function);
     }
 
     // annotate labels
@@ -64,6 +55,10 @@ fn resolve_block(
                 resolved_block_items.push(ASTBlockItem::VariableDeclaration(resolved_declaration))
             }
             ASTBlockItem::FunctionDeclaration(decl) => {
+                if decl.body.is_some() {
+                    panic!("Functions can only be defined in the global scope. Found local defined function: {:?}", decl.name)
+                }
+
                 let resolved_declaration =
                     resolve_function_declaration(context, &decl, variable_map);
                 resolved_block_items.push(ASTBlockItem::FunctionDeclaration(resolved_declaration))
@@ -174,7 +169,7 @@ fn resolve_function_declaration(
     let new_entry = VariableMapEntry {
         new_name: decl.name.clone(),
         from_current_scope: true,
-        has_external_linkage: true,
+        has_external_linkage: true, // will this always be true?
     };
     variable_map.insert(decl.name.clone(), new_entry);
 
@@ -248,12 +243,17 @@ fn resolve_expr(
     variable_map: &mut HashMap<String, VariableMapEntry>,
 ) -> ASTExpression {
     match expr {
-        ASTExpression::FunctionCall(identifier, args) => {
-            let mut resolved_args: Vec<ASTExpression> = Vec::new();
-            for arg in args {
-                resolved_args.push(resolve_expr(context, arg, variable_map))
+        ASTExpression::FunctionCall(name, args) => {
+            if variable_map.contains_key(name) {
+                let mut resolved_args: Vec<ASTExpression> = Vec::new();
+                for arg in args {
+                    resolved_args.push(resolve_expr(context, arg, variable_map))
+                }
+                let new_name = &variable_map.get(name).unwrap().new_name;
+                return ASTExpression::FunctionCall(new_name.clone(), resolved_args);
+            } else {
+                panic!("Tried to call undeclared function!: {:?}", name)
             }
-            return ASTExpression::FunctionCall(identifier.clone(), resolved_args);
         }
         ASTExpression::Assignment(left, right) => match **left {
             ASTExpression::Var(_) => {
