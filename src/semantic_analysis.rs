@@ -3,7 +3,7 @@ use crate::parser::{
     ASTStatement, ASTVariableDeclaration,
 };
 
-use crate::global_context::{SymbolType, SymbolTable, CompilerContext};
+use crate::global_context::{CompilerContext, SymbolTable, SymbolType};
 use core::panic;
 use std::collections::HashMap;
 
@@ -426,7 +426,7 @@ fn annotate_variable_declaration(
 ) {
     match &mut decl.init {
         Some(expr) => annotate_expr(context, expr, current_label),
-        None => {},
+        None => {}
     };
 }
 
@@ -437,7 +437,7 @@ fn annotate_function_declaration(
 ) {
     match &mut decl.body {
         Some(body) => annotate_block(context, body, current_label),
-        None => {},
+        None => {}
     };
 }
 
@@ -469,10 +469,7 @@ fn annotate_expr(
     }
 }
 
-pub fn typecheck_block(
-    symbols: &mut SymbolTable,
-    block: &ASTBlock,
-) {
+pub fn typecheck_block(symbols: &mut SymbolTable, block: &ASTBlock) {
     for item in &block.items {
         match item {
             ASTBlockItem::Statement(statement) => {
@@ -488,10 +485,7 @@ pub fn typecheck_block(
     }
 }
 
-pub fn typecheck_statement(
-    symbols: &mut SymbolTable,
-    statement: &ASTStatement
-) {
+pub fn typecheck_statement(symbols: &mut SymbolTable, statement: &ASTStatement) {
     match statement {
         ASTStatement::Return(expr) => {
             typecheck_expr(symbols, expr);
@@ -519,9 +513,7 @@ pub fn typecheck_statement(
         }
         ASTStatement::For(init, condition, post, body, label) => {
             match init {
-                ASTForInit::InitDecl(decl) => {
-                    typecheck_variable_declaration(symbols, decl)
-                }
+                ASTForInit::InitDecl(decl) => typecheck_variable_declaration(symbols, decl),
                 ASTForInit::InitExpr(maybe_expr) => match maybe_expr {
                     Some(expr) => typecheck_expr(symbols, expr),
                     None => {}
@@ -530,32 +522,25 @@ pub fn typecheck_statement(
             condition
                 .as_ref()
                 .map(|cond_expr| typecheck_expr(symbols, cond_expr));
-            post
-                .as_ref()
+            post.as_ref()
                 .map(|post_expr| typecheck_expr(symbols, post_expr));
 
             typecheck_statement(symbols, body);
         }
-        ASTStatement::Break(_) => {},
-        ASTStatement::Continue(_) => {},
+        ASTStatement::Break(_) => {}
+        ASTStatement::Continue(_) => {}
         ASTStatement::Null => {}
     }
 }
 
-fn typecheck_variable_declaration(
-    symbols: &mut SymbolTable,
-    decl: &ASTVariableDeclaration
-) {
+fn typecheck_variable_declaration(symbols: &mut SymbolTable, decl: &ASTVariableDeclaration) {
     symbols.insert(decl.name.clone(), SymbolType::Int);
     if decl.init.is_some() {
         typecheck_expr(symbols, &decl.init.as_ref().unwrap())
     }
 }
 
-fn typecheck_function_declaration(
-    symbols: &mut SymbolTable,
-    decl: &ASTFunctionDeclaration,
-) {
+fn typecheck_function_declaration(symbols: &mut SymbolTable, decl: &ASTFunctionDeclaration) {
     let num_args = decl.args.len();
     let is_defined = decl.body.is_some();
     let mut func_type = SymbolType::Func(num_args, is_defined);
@@ -584,10 +569,7 @@ fn typecheck_function_declaration(
     };
 }
 
-fn typecheck_expr(
-    symbols: &mut SymbolTable,
-    expr: &ASTExpression,
-) {
+fn typecheck_expr(symbols: &mut SymbolTable, expr: &ASTExpression) {
     match expr {
         ASTExpression::FunctionCall(name, args) => {
             match symbols.get(name) {
@@ -601,7 +583,7 @@ fn typecheck_expr(
                         }
                     }
                 }
-                None => panic!("Tried calling undeclared function: {:?}", name)
+                None => panic!("Tried calling undeclared function: {:?}", name),
             }
 
             for arg in args {
@@ -609,16 +591,14 @@ fn typecheck_expr(
             }
         }
 
-        ASTExpression::Var(name) => {
-            match symbols.get(name) {
-                Some(symbol_type) => {
-                    if symbol_type != &SymbolType::Int {
-                        panic!("Used function name improperly as variable: {:?}", name)
-                    }
+        ASTExpression::Var(name) => match symbols.get(name) {
+            Some(symbol_type) => {
+                if symbol_type != &SymbolType::Int {
+                    panic!("Used function name improperly as variable: {:?}", name)
                 }
-                None => panic!("Could not find undeclared variable: {:?}", name)
             }
-        }
+            None => panic!("Could not find undeclared variable: {:?}", name),
+        },
 
         ASTExpression::Assignment(left, right) => {
             typecheck_expr(symbols, left);
