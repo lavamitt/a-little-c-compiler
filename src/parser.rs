@@ -479,6 +479,7 @@ where
     I: Iterator<Item = &'a Token> + Clone,
 {
     let next_token = tokens.peek();
+    println!("{:?}", next_token);
     match next_token {
         Some(Token::IntegerLiteral(int)) => {
             tokens.next();
@@ -509,23 +510,27 @@ where
             tokens.next();
 
             if tokens.peek() == Some(&&Token::OpenParen) {
+                tokens.next(); // eat up open paren
                 let mut args: Vec<ASTExpression> = Vec::new();
-                loop {
-                    let (new_arg, _tokens) = parse_expr(tokens, 0);
-                    args.push(new_arg);
-                    tokens = _tokens;
-                    if tokens.peek() == Some(&&Token::CloseParen) {
-                        break;
+                if tokens.peek() != Some(&&Token::CloseParen) {
+                    loop {
+                        let (new_arg, _tokens) = parse_expr(tokens, 0);
+                        args.push(new_arg);
+                        tokens = _tokens;
+                        if tokens.peek() == Some(&&Token::CloseParen) {
+                            break;
+                        }
+                        expect_token(tokens.next(), &Token::Comma);
                     }
-                    expect_token(tokens.next(), &Token::Comma);
                 }
+                tokens.next(); // eat up close paren
 
                 (ASTExpression::FunctionCall(name.clone(), args), tokens)
             } else {
                 (ASTExpression::Var(name.clone()), tokens)
             }
         }
-        _ => panic!("Did not find a way to parse the expression"),
+        _ => panic!("Did not find a way to parse the expression: {:?}", next_token),
     }
 }
 

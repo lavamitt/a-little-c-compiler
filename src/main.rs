@@ -73,7 +73,7 @@ fn parse_args(args: &[String]) -> (bool, Option<Stage>, String) {
         }
     }
 
-    (generate_object_file, stage, args[2].clone())
+    (generate_object_file, stage, args[args.len() - 1].clone())
 }
 
 fn preprocess_file(input_path: &Path) -> PathBuf {
