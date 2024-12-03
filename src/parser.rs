@@ -98,7 +98,7 @@ pub struct ASTProgram {
 // <program> ::= <function>
 pub fn parse_program<'a, I>(mut tokens: Peekable<I>) -> ASTProgram
 where
-    I: Iterator<Item = &'a Token>,
+    I: Iterator<Item = &'a Token> + Clone,
 {
     let mut functions: Vec<ASTFunctionDeclaration> = Vec::new();
     while tokens.peek().is_some() {
@@ -116,7 +116,7 @@ fn parse_function_declaration<'a, I>(
     mut tokens: Peekable<I>,
 ) -> (ASTFunctionDeclaration, Peekable<I>)
 where
-    I: Iterator<Item = &'a Token>,
+    I: Iterator<Item = &'a Token> + Clone,
 {
     expect_token(tokens.next(), &Token::IntKeyword);
     let identifier = match tokens.next() {
@@ -168,7 +168,7 @@ where
 // <block> ::= "{" { <block-item>} "}"
 fn parse_block<'a, I>(mut tokens: Peekable<I>) -> (ASTBlock, Peekable<I>)
 where
-    I: Iterator<Item = &'a Token>,
+    I: Iterator<Item = &'a Token> + Clone,
 {
     let mut items: Vec<ASTBlockItem> = Vec::new();
 
@@ -191,11 +191,11 @@ where
 // <block-item> ::= <statement> | <variable_declaration> | <function_declaration>
 fn parse_block_item<'a, I>(mut tokens: Peekable<I>) -> (ASTBlockItem, Peekable<I>)
 where
-    I: Iterator<Item = &'a Token>,
+    I: Iterator<Item = &'a Token> + Clone,
 {
     if tokens.peek() == Some(&&Token::IntKeyword) {
-        let mut nth_token_iter = peek_nth(tokens);
-        if nth_token_iter.peek_nth(2) == Some(&&Token::OpenParen) {
+        let is_function = peek_nth(tokens.clone()).peek_nth(2) == Some(&&Token::OpenParen);
+        if is_function {
             let (declaration, tokens) = parse_function_declaration(tokens);
             (ASTBlockItem::FunctionDeclaration(declaration), tokens)
         } else {
@@ -213,7 +213,7 @@ fn parse_variable_declaration<'a, I>(
     mut tokens: Peekable<I>,
 ) -> (ASTVariableDeclaration, Peekable<I>)
 where
-    I: Iterator<Item = &'a Token>,
+    I: Iterator<Item = &'a Token> + Clone,
 {
     expect_token(tokens.next(), &Token::IntKeyword);
     let variable_name = match tokens.next() {
@@ -253,7 +253,7 @@ where
 // <statement> ::= "return" <exp> ";" | <exp> ";" | <block> | ";"
 fn parse_statement<'a, I>(mut tokens: Peekable<I>) -> (ASTStatement, Peekable<I>)
 where
-    I: Iterator<Item = &'a Token>,
+    I: Iterator<Item = &'a Token> + Clone,
 {
     match tokens.peek() {
         Some(&Token::ReturnKeyword) => {
@@ -361,7 +361,7 @@ where
 
 fn parse_for_init<'a, I>(mut tokens: Peekable<I>) -> (ASTForInit, Peekable<I>)
 where
-    I: Iterator<Item = &'a Token>,
+    I: Iterator<Item = &'a Token> + Clone,
 {
     match tokens.peek() {
         Some(&Token::IntKeyword) => {
@@ -383,7 +383,7 @@ where
 // <exp> ::= <factor> | <exp> <binop> <exp>
 fn parse_expr<'a, I>(mut tokens: Peekable<I>, min_precedence: u32) -> (ASTExpression, Peekable<I>)
 where
-    I: Iterator<Item = &'a Token>,
+    I: Iterator<Item = &'a Token> + Clone,
 {
     let (mut left, mut tokens) = parse_factor(tokens);
     while let Some(token) = tokens.peek() {
@@ -476,7 +476,7 @@ fn precedence(binary_op: &ASTBinaryOperator) -> u32 {
 // | <identifier> "(" [ <argument-list> ] ")"
 fn parse_factor<'a, I>(mut tokens: Peekable<I>) -> (ASTExpression, Peekable<I>)
 where
-    I: Iterator<Item = &'a Token>,
+    I: Iterator<Item = &'a Token> + Clone,
 {
     let next_token = tokens.peek();
     match next_token {
