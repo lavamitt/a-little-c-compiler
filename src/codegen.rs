@@ -4,12 +4,19 @@ use crate::tackygen::{
 };
 use std::collections::HashMap;
 
+// caller-saved == the caller should save the vals in these registers before calling a function
+// all other registers are callee-saved, we can assume the vals will stay the same when returning to us.
 #[derive(Debug, Clone)]
 pub enum Reg {
-    AX,
-    DX,
-    R10,
-    R11,
+    AX, // typically stores return values, also used in math, caller-saved
+    CX, // fourth param, loop counting, string ops, repeated instructions, caller-saved
+    DX, // third param, I/O, overflow in math, caller-saved
+    DI, // first param, destination pointer in string ops, caller-saved
+    SI, // second param, source pointer in string ops, caller-saved
+    R8, // fifth param, caller-saved
+    R9, // sixth param, caller-saved
+    R10, // caller-saved
+    R11, // caller-saved
 }
 
 #[derive(Debug, Clone)]
@@ -57,6 +64,9 @@ pub enum AssemblyInstruction {
     SetCC(ConditionalCode, Operand),
     Label(String),
     AllocateStack(u32), // ex: subq $n, %rsp
+    DeallocateStack(u32), // ex: addq $n, %rsp
+    Push(Operand),
+    Call(String),
     Ret,
 }
 
@@ -68,7 +78,7 @@ pub struct AssemblyFunctionDefinition {
 
 #[derive(Debug, Clone)]
 pub struct AssemblyProgram {
-    pub function: AssemblyFunctionDefinition,
+    pub functions: Vec<AssemblyFunctionDefinition>,
 }
 
 pub fn codegen(program: TACKYProgram) -> AssemblyProgram {
