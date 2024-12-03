@@ -1,30 +1,48 @@
 use crate::parser::{
-    ASTBlock, ASTBlockItem, ASTExpression, ASTForInit, ASTFunctionDefinition, ASTProgram,
+    ASTBlock, ASTBlockItem, ASTExpression, ASTForInit, ASTFunctionDeclaration, ASTProgram,
     ASTStatement, ASTVariableDeclaration,
 };
 use crate::tackygen::TACKYContext;
 use std::collections::HashMap;
+use std::env::var;
 
 #[derive(Debug, Clone)]
 struct VariableMapEntry {
     new_name: String,
-    from_current_block: bool,
+    from_current_scope: bool,
+    has_external_linkage: bool
 }
 
 pub fn semantic_pass(context: &mut TACKYContext, program: ASTProgram) -> ASTProgram {
     // resolve variables
     let mut variable_map: HashMap<String, VariableMapEntry> = HashMap::new();
-    let mut resolved_function_body =
-        resolve_block(context, &program.function.body, &mut variable_map);
+
+    let mut resolved_functions: Vec<ASTFunctionDeclaration> = Vec::new();
+
+    for function in program.functions {
+        if function.body.is_some() {
+            let resolved_function_body = resolve_block(context, &function.body.unwrap(), &mut variable_map);
+            resolved_functions.push(
+                ASTFunctionDeclaration {
+                    name: function.name,
+                    args: function.args,
+                    body: Some(resolved_function_body)
+                }
+            )
+        } else {
+            resolved_functions.push(function)
+        }
+    }
 
     // annotate labels
-    annotate_block(context, &mut resolved_function_body, None);
+    for function in &mut resolved_functions {
+        if let Some(ref mut body) = function.body {
+            annotate_block(context, body, None);
+        }
+    }
 
     ASTProgram {
-        function: ASTFunctionDefinition {
-            name: program.function.name.clone(), // should we resolve the function name too?
-            body: resolved_function_body,
-        },
+        functions: resolved_functions
     }
 }
 
@@ -42,8 +60,12 @@ fn resolve_block(
                 resolved_block_items.push(ASTBlockItem::Statement(resolved_statement))
             }
             ASTBlockItem::VariableDeclaration(decl) => {
-                let resolved_declaration = resolve_declaration(context, &decl, variable_map);
+                let resolved_declaration = resolve_variable_declaration(context, &decl, variable_map);
                 resolved_block_items.push(ASTBlockItem::VariableDeclaration(resolved_declaration))
+            }
+            ASTBlockItem::FunctionDeclaration(decl) => {
+                let resolved_declaration = resolve_function_declaration(context, &decl, variable_map);
+                resolved_block_items.push(ASTBlockItem::FunctionDeclaration(resolved_declaration))
             }
         }
     }
@@ -96,7 +118,7 @@ fn resolve_statement(
         ASTStatement::For(init, condition, post, body, label) => {
             let mut new_scope_variable_map = copy_variable_map(variable_map);
             let resolved_for_init = match init {
-                ASTForInit::InitDecl(decl) => ASTForInit::InitDecl(resolve_declaration(
+                ASTForInit::InitDecl(decl) => ASTForInit::InitDecl(resolve_variable_declaration(
                     context,
                     decl,
                     &mut new_scope_variable_map,
@@ -137,25 +159,78 @@ fn resolve_statement(
     }
 }
 
-fn resolve_declaration(
+fn resolve_function_declaration(
     context: &mut TACKYContext,
-    decl: &ASTVariableDeclaration,
+    decl: &ASTFunctionDeclaration,
     variable_map: &mut HashMap<String, VariableMapEntry>,
-) -> ASTVariableDeclaration {
+) -> ASTFunctionDeclaration {
     if variable_map.contains_key(&decl.name)
-        && variable_map.get(&decl.name).unwrap().from_current_block
+        && variable_map.get(&decl.name).unwrap().from_current_scope
+        && !variable_map.get(&decl.name).unwrap().has_external_linkage
     {
-        panic!("Duplicate variable declaration!: {:?}", decl.name);
+        panic!("Duplicate function declaration!: {:?}", decl.name);
+    }
+
+    let new_entry = VariableMapEntry {
+        new_name: decl.name.clone(),
+        from_current_scope: true,
+        has_external_linkage: true
+    };
+    variable_map.insert(decl.name.clone(), new_entry);
+
+    let mut inner_function_scope_variable_map = copy_variable_map(variable_map);
+    let mut resolved_args: Vec<String> = Vec::new();
+
+    for arg in &decl.args {
+        let new_name = resolve_var_identifier(context, &arg, &mut inner_function_scope_variable_map);
+        resolved_args.push(new_name)
+    }
+
+    let resolved_body = match &decl.body {
+        Some(body) => {
+            let _body = resolve_block(context, & body, &mut inner_function_scope_variable_map);
+            Some(_body)
+        }
+        None => None
+    };
+
+    ASTFunctionDeclaration {
+        name: decl.name.clone(),
+        args: resolved_args,
+        body: resolved_body
+    }
+}
+
+fn resolve_var_identifier(
+    context: &mut TACKYContext,
+    name: &String,
+    variable_map: &mut HashMap<String, VariableMapEntry>,
+) -> String {
+    if variable_map.contains_key(name)
+        && variable_map.get(name).unwrap().from_current_scope
+    {
+        panic!("Duplicate variable declaration!: {:?}", name);
     }
 
     let unique_name = &context
         .helper
-        .make_labels_at_same_counter(vec![decl.name.clone()])[0];
+        .make_labels_at_same_counter(vec![name.clone()])[0];
     let new_entry = VariableMapEntry {
         new_name: unique_name.clone(),
-        from_current_block: true,
+        from_current_scope: true,
+        has_external_linkage: false
     };
-    variable_map.insert(decl.name.clone(), new_entry);
+
+    variable_map.insert(name.clone(), new_entry);
+    unique_name.clone()
+}
+
+fn resolve_variable_declaration(
+    context: &mut TACKYContext,
+    decl: &ASTVariableDeclaration,
+    variable_map: &mut HashMap<String, VariableMapEntry>,
+) -> ASTVariableDeclaration {
+    let new_var_name = resolve_var_identifier(context, &decl.name, variable_map);
 
     let resolved_init = match &decl.init {
         Some(expr) => Some(resolve_expr(context, &expr, variable_map)),
@@ -163,7 +238,7 @@ fn resolve_declaration(
     };
 
     ASTVariableDeclaration {
-        name: unique_name.clone(),
+        name: new_var_name.clone(),
         init: resolved_init,
     }
 }
@@ -174,6 +249,13 @@ fn resolve_expr(
     variable_map: &mut HashMap<String, VariableMapEntry>,
 ) -> ASTExpression {
     match expr {
+        ASTExpression::FunctionCall(identifier, args) => {
+            let mut resolved_args: Vec<ASTExpression> = Vec::new();
+            for arg in args {
+                resolved_args.push(resolve_expr(context, arg, variable_map))
+            }
+            return ASTExpression::FunctionCall(identifier.clone(), resolved_args)
+        }
         ASTExpression::Assignment(left, right) => match **left {
             ASTExpression::Var(_) => {
                 return ASTExpression::Assignment(
@@ -226,7 +308,7 @@ fn copy_variable_map(
 ) -> HashMap<String, VariableMapEntry> {
     let mut new_map = variable_map.clone();
     for (_, value) in new_map.iter_mut() {
-        value.from_current_block = false;
+        value.from_current_scope = false;
     }
     return new_map;
 }
