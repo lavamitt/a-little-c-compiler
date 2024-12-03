@@ -44,7 +44,7 @@ pub enum TACKYInstruction {
     JumpIfZero(TACKYVal, String),
     JumpIfNotZero(TACKYVal, String),
     Label(String),
-    FunCall(String, Vec<TACKYVal>, TACKYVal) // func_name args dst
+    FunCall(String, Vec<TACKYVal>, TACKYVal), // func_name args dst
 }
 
 #[derive(Debug)]
@@ -85,13 +85,17 @@ fn tackygen_function(
         Some(body) => {
             tackygen_block(context, body, &mut instructions);
         }
-        None => { return None }
+        None => return None,
     }
-    
+
     // just in case the function did not provide a return statement
     instructions.push(TACKYInstruction::Return(TACKYVal::Constant(0)));
 
-    Some(TACKYFunctionDefinition { name, args: function.args, instructions })
+    Some(TACKYFunctionDefinition {
+        name,
+        args: function.args,
+        instructions,
+    })
 }
 
 fn tackygen_block(

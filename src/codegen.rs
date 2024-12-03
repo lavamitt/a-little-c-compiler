@@ -72,10 +72,14 @@ pub struct AssemblyProgram {
 }
 
 pub fn codegen(program: TACKYProgram) -> AssemblyProgram {
-
     // TMP UNDO CHANGES HERE
     // let function = codegen_function(program.function);
-    let mut assembly_program = AssemblyProgram { function: AssemblyFunctionDefinition { name: String::new(), instructions: Vec::new() } };
+    let mut assembly_program = AssemblyProgram {
+        function: AssemblyFunctionDefinition {
+            name: String::new(),
+            instructions: Vec::new(),
+        },
+    };
 
     // println!("BEFORE FIXES:");
     // println!("{:?}", assembly_program);
