@@ -546,12 +546,10 @@ fn typecheck_function_declaration(symbols: &mut SymbolTable, decl: &ASTFunctionD
     let mut func_type = SymbolType::Func(num_args, is_defined);
     match symbols.get(&decl.name) {
         Some(existing_symbol_type) => {
-            // check that the declaration matches the signature of the existing declaration
-            if func_type != *existing_symbol_type {
-                panic!("Incompatible function declarations for: {:?}", &decl.name);
-            }
-            // check if the new function defines an already defined function
-            if let SymbolType::Func(_, existing_defined) = existing_symbol_type {
+            if let SymbolType::Func(existing_num_args, existing_defined) = existing_symbol_type {
+                if num_args != *existing_num_args {
+                    panic!("Function redeclared with different number of arguments: {:?}", &decl.name);
+                }
                 if is_defined && *existing_defined {
                     panic!("Function is defined more than once: {:?}", &decl.name);
                 }
@@ -562,6 +560,10 @@ fn typecheck_function_declaration(symbols: &mut SymbolTable, decl: &ASTFunctionD
     }
 
     symbols.insert(decl.name.clone(), func_type);
+
+    for arg in &decl.args {
+        symbols.insert(arg.clone(), SymbolType::Int);
+    }
 
     match &decl.body {
         Some(body) => Some(typecheck_block(symbols, body)),

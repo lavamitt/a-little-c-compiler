@@ -479,7 +479,6 @@ where
     I: Iterator<Item = &'a Token> + Clone,
 {
     let next_token = tokens.peek();
-    println!("{:?}", next_token);
     match next_token {
         Some(Token::IntegerLiteral(int)) => {
             tokens.next();
