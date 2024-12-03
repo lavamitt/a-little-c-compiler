@@ -4,6 +4,7 @@ mod lexer;
 mod parser;
 mod semantic_analysis;
 mod tackygen;
+mod global_context;
 
 use crate::codeemission::emit_code;
 use crate::codegen::codegen;
@@ -11,7 +12,7 @@ use crate::lexer::Lexer;
 use crate::parser::parse_program;
 use crate::semantic_analysis::semantic_pass;
 use crate::tackygen::tackygen;
-use crate::tackygen::TACKYContext;
+use crate::global_context::CompilerContext;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -147,9 +148,9 @@ fn run_parser(code: &str) -> parser::ASTProgram {
     program
 }
 
-fn run_validate(code: &str) -> (parser::ASTProgram, TACKYContext) {
+fn run_validate(code: &str) -> (parser::ASTProgram, CompilerContext) {
     let program = run_parser(code);
-    let mut context = TACKYContext::new();
+    let mut context = CompilerContext::new();
     let resolved_program = semantic_pass(&mut context, program);
     println!("############## VAIDATE DEBUG INFO ##############");
     println!("{:?}", resolved_program);

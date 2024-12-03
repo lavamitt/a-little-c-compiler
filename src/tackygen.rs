@@ -1,9 +1,10 @@
 use core::panic;
 
 use crate::parser::{
-    ASTBinaryOperator, ASTBlock, ASTBlockItem, ASTExpression, ASTForInit, ASTFunctionDefinition,
+    ASTBinaryOperator, ASTBlock, ASTBlockItem, ASTExpression, ASTForInit, ASTFunctionDeclaration,
     ASTProgram, ASTStatement, ASTUnaryOperator, ASTVariableDeclaration,
 };
+use crate::global_context::CompilerContext;
 
 #[derive(Debug, Clone)]
 pub enum TACKYVal {
@@ -56,50 +57,13 @@ pub struct TACKYProgram {
     pub function: TACKYFunctionDefinition,
 }
 
-pub struct TACKYHelperFunctions {
-    pub(crate) tmp_register_counter: u32,
-    pub(crate) label_counter: u32,
-}
-
-impl TACKYHelperFunctions {
-    pub fn make_temporary_register(&mut self) -> String {
-        let new_temporary_register = format!("tmp.{}", self.tmp_register_counter.to_string());
-        self.tmp_register_counter += 1;
-        new_temporary_register
-    }
-
-    pub fn make_labels_at_same_counter(&mut self, prefixes: Vec<String>) -> Vec<String> {
-        let mut new_labels: Vec<String> = Vec::new();
-        for prefix in prefixes {
-            new_labels.push(format!("{}.{}", prefix, self.label_counter.to_string()))
-        }
-        self.label_counter += 1;
-        new_labels
-    }
-}
-
-pub struct TACKYContext {
-    pub helper: TACKYHelperFunctions,
-}
-
-impl TACKYContext {
-    pub fn new() -> Self {
-        Self {
-            helper: TACKYHelperFunctions {
-                tmp_register_counter: 0,
-                label_counter: 0,
-            },
-        }
-    }
-}
-
-pub fn tackygen(context: &mut TACKYContext, program: ASTProgram) -> TACKYProgram {
+pub fn tackygen(context: &mut CompilerContext, program: ASTProgram) -> TACKYProgram {
     let function = tackygen_function(context, program.function);
     TACKYProgram { function }
 }
 
 fn tackygen_function(
-    context: &mut TACKYContext,
+    context: &mut CompilerContext,
     function: ASTFunctionDefinition,
 ) -> TACKYFunctionDefinition {
     let name = function.name;
@@ -114,7 +78,7 @@ fn tackygen_function(
 }
 
 fn tackygen_block(
-    context: &mut TACKYContext,
+    context: &mut CompilerContext,
     block: ASTBlock,
     instructions: &mut Vec<TACKYInstruction>,
 ) {
@@ -131,7 +95,7 @@ fn tackygen_block(
 }
 
 fn tackygen_statement(
-    context: &mut TACKYContext,
+    context: &mut CompilerContext,
     statement: ASTStatement,
     instructions: &mut Vec<TACKYInstruction>,
 ) {
@@ -269,7 +233,7 @@ fn tackygen_statement(
 }
 
 fn tackygen_for_init(
-    context: &mut TACKYContext,
+    context: &mut CompilerContext,
     init: ASTForInit,
     instructions: &mut Vec<TACKYInstruction>,
 ) {
@@ -287,7 +251,7 @@ fn tackygen_for_init(
 }
 
 fn tackygen_declaration(
-    context: &mut TACKYContext,
+    context: &mut CompilerContext,
     decl: ASTVariableDeclaration,
     instructions: &mut Vec<TACKYInstruction>,
 ) {
@@ -304,7 +268,7 @@ fn tackygen_declaration(
 }
 
 fn tackygen_expression(
-    context: &mut TACKYContext,
+    context: &mut CompilerContext,
     expression: ASTExpression,
     instructions: &mut Vec<TACKYInstruction>,
 ) -> TACKYVal {

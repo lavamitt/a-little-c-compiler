@@ -2,9 +2,9 @@ use crate::parser::{
     ASTBlock, ASTBlockItem, ASTExpression, ASTForInit, ASTFunctionDeclaration, ASTProgram,
     ASTStatement, ASTVariableDeclaration,
 };
-use crate::tackygen::TACKYContext;
+
+use crate::global_context::CompilerContext;
 use std::collections::HashMap;
-use std::env::var;
 
 #[derive(Debug, Clone)]
 struct VariableMapEntry {
@@ -13,7 +13,7 @@ struct VariableMapEntry {
     has_external_linkage: bool,
 }
 
-pub fn semantic_pass(context: &mut TACKYContext, program: ASTProgram) -> ASTProgram {
+pub fn semantic_pass(context: &mut CompilerContext, program: ASTProgram) -> ASTProgram {
     // resolve variables
     let mut variable_map: HashMap<String, VariableMapEntry> = HashMap::new();
 
@@ -37,7 +37,7 @@ pub fn semantic_pass(context: &mut TACKYContext, program: ASTProgram) -> ASTProg
 }
 
 fn resolve_block(
-    context: &mut TACKYContext,
+    context: &mut CompilerContext,
     block: &ASTBlock,
     variable_map: &mut HashMap<String, VariableMapEntry>,
 ) -> ASTBlock {
@@ -72,7 +72,7 @@ fn resolve_block(
 }
 
 fn resolve_statement(
-    context: &mut TACKYContext,
+    context: &mut CompilerContext,
     statement: &ASTStatement,
     variable_map: &mut HashMap<String, VariableMapEntry>,
 ) -> ASTStatement {
@@ -155,7 +155,7 @@ fn resolve_statement(
 }
 
 fn resolve_function_declaration(
-    context: &mut TACKYContext,
+    context: &mut CompilerContext,
     decl: &ASTFunctionDeclaration,
     variable_map: &mut HashMap<String, VariableMapEntry>,
 ) -> ASTFunctionDeclaration {
@@ -198,7 +198,7 @@ fn resolve_function_declaration(
 }
 
 fn resolve_var_identifier(
-    context: &mut TACKYContext,
+    context: &mut CompilerContext,
     name: &String,
     variable_map: &mut HashMap<String, VariableMapEntry>,
 ) -> String {
@@ -220,7 +220,7 @@ fn resolve_var_identifier(
 }
 
 fn resolve_variable_declaration(
-    context: &mut TACKYContext,
+    context: &mut CompilerContext,
     decl: &ASTVariableDeclaration,
     variable_map: &mut HashMap<String, VariableMapEntry>,
 ) -> ASTVariableDeclaration {
@@ -238,7 +238,7 @@ fn resolve_variable_declaration(
 }
 
 fn resolve_expr(
-    context: &mut TACKYContext, // technically this isn't used...
+    context: &mut CompilerContext, // technically this isn't used...
     expr: &ASTExpression,
     variable_map: &mut HashMap<String, VariableMapEntry>,
 ) -> ASTExpression {
@@ -313,7 +313,7 @@ fn copy_variable_map(
 }
 
 pub fn annotate_block(
-    context: &mut TACKYContext,
+    context: &mut CompilerContext,
     block: &mut ASTBlock, // Change to &mut
     current_label: Option<&str>,
 ) {
@@ -330,7 +330,7 @@ pub fn annotate_block(
 }
 
 pub fn annotate_statement(
-    context: &mut TACKYContext,
+    context: &mut CompilerContext,
     statement: &mut ASTStatement,
     current_label: Option<&str>,
 ) {
@@ -413,7 +413,7 @@ pub fn annotate_statement(
 }
 
 fn annotate_declaration(
-    context: &mut TACKYContext,
+    context: &mut CompilerContext,
     decl: &mut ASTVariableDeclaration,
     current_label: Option<&str>,
 ) {
@@ -424,7 +424,7 @@ fn annotate_declaration(
 }
 
 fn annotate_expr(
-    context: &mut TACKYContext,
+    context: &mut CompilerContext,
     expr: &mut ASTExpression,
     current_label: Option<&str>,
 ) {
