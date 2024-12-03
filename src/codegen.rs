@@ -72,14 +72,16 @@ pub struct AssemblyProgram {
 }
 
 pub fn codegen(program: TACKYProgram) -> AssemblyProgram {
-    let function = codegen_function(program.function);
-    let mut assembly_program = AssemblyProgram { function };
 
-    println!("BEFORE FIXES:");
-    println!("{:?}", assembly_program);
-    let offset = replace_pseudo(&mut assembly_program);
+    // TMP UNDO CHANGES HERE
+    // let function = codegen_function(program.function);
+    let mut assembly_program = AssemblyProgram { function: AssemblyFunctionDefinition { name: String::new(), instructions: Vec::new() } };
 
-    fix_instructions(&mut assembly_program, offset);
+    // println!("BEFORE FIXES:");
+    // println!("{:?}", assembly_program);
+    // let offset = replace_pseudo(&mut assembly_program);
+
+    // fix_instructions(&mut assembly_program, offset);
     assembly_program
 }
 
@@ -209,6 +211,8 @@ fn codegen_body(instructions: &Vec<TACKYInstruction>) -> Vec<AssemblyInstruction
                 assembly_instructions.push(AssemblyInstruction::Mov(operand, ret_reg));
                 assembly_instructions.push(AssemblyInstruction::Ret);
             }
+            // temp TODO REMOVE
+            _ => {}
         };
     }
     assembly_instructions

@@ -44,37 +44,54 @@ pub enum TACKYInstruction {
     JumpIfZero(TACKYVal, String),
     JumpIfNotZero(TACKYVal, String),
     Label(String),
+    FunCall(String, Vec<TACKYVal>, TACKYVal) // func_name args dst
 }
 
 #[derive(Debug)]
 pub struct TACKYFunctionDefinition {
     pub name: String,
+    pub args: Vec<String>,
     pub instructions: Vec<TACKYInstruction>,
 }
 
 #[derive(Debug)]
 pub struct TACKYProgram {
-    pub function: TACKYFunctionDefinition,
+    pub functions: Vec<TACKYFunctionDefinition>,
 }
 
 pub fn tackygen(context: &mut CompilerContext, program: ASTProgram) -> TACKYProgram {
-    let function = tackygen_function(context, program.function);
-    TACKYProgram { function }
+    let mut functions: Vec<TACKYFunctionDefinition> = Vec::new();
+
+    for function in program.functions {
+        match tackygen_function(context, function) {
+            Some(tacky_function) => {
+                functions.push(tacky_function);
+            }
+            None => {}
+        }
+    }
+
+    TACKYProgram { functions }
 }
 
 fn tackygen_function(
     context: &mut CompilerContext,
-    function: ASTFunctionDefinition,
-) -> TACKYFunctionDefinition {
+    function: ASTFunctionDeclaration,
+) -> Option<TACKYFunctionDefinition> {
     let name = function.name;
 
     let mut instructions: Vec<TACKYInstruction> = Vec::new();
-    tackygen_block(context, function.body, &mut instructions);
-
+    match function.body {
+        Some(body) => {
+            tackygen_block(context, body, &mut instructions);
+        }
+        None => { return None }
+    }
+    
     // just in case the function did not provide a return statement
     instructions.push(TACKYInstruction::Return(TACKYVal::Constant(0)));
 
-    TACKYFunctionDefinition { name, instructions }
+    Some(TACKYFunctionDefinition { name, args: function.args, instructions })
 }
 
 fn tackygen_block(
@@ -89,6 +106,9 @@ fn tackygen_block(
             }
             ASTBlockItem::VariableDeclaration(decl) => {
                 tackygen_declaration(context, decl, instructions)
+            }
+            ASTBlockItem::FunctionDeclaration(_) => {
+                // if this is valid, it would just be a declaration without a body, so do nothing.
             }
         }
     }
@@ -367,6 +387,19 @@ fn tackygen_expression(
                 src2,
                 dst.clone(),
             ));
+            dst
+        }
+        ASTExpression::FunctionCall(name, args) => {
+            let mut arg_srcs: Vec<TACKYVal> = Vec::new();
+            for arg in args {
+                let arg_src = tackygen_expression(context, arg, instructions);
+                arg_srcs.push(arg_src);
+            }
+
+            let dst_name = context.helper.make_temporary_register();
+            let dst = TACKYVal::Var(dst_name);
+
+            instructions.push(TACKYInstruction::FunCall(name.clone(), arg_srcs, dst.clone()));
             dst
         }
     };
