@@ -44,7 +44,7 @@ pub enum TACKYInstruction {
     JumpIfZero(TACKYVal, String),
     JumpIfNotZero(TACKYVal, String),
     Label(String),
-    FunCall(String, Vec<TACKYVal>, TACKYVal), // func_name args dst
+    FuncCall(String, Vec<TACKYVal>, TACKYVal), // func_name args dst
 }
 
 #[derive(Debug)]
@@ -403,7 +403,7 @@ fn tackygen_expression(
             let dst_name = context.helper.make_temporary_register();
             let dst = TACKYVal::Var(dst_name);
 
-            instructions.push(TACKYInstruction::FunCall(name.clone(), arg_srcs, dst.clone()));
+            instructions.push(TACKYInstruction::FuncCall(name.clone(), arg_srcs, dst.clone()));
             dst
         }
     };

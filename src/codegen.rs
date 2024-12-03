@@ -4,20 +4,31 @@ use crate::tackygen::{
 };
 use std::collections::HashMap;
 
-// caller-saved == the caller should save the vals in these registers before calling a function
-// all other registers are callee-saved, we can assume the vals will stay the same when returning to us.
+/// caller-saved == the caller should save the vals in these registers before calling a function
+/// all other registers are callee-saved, we can assume the vals will stay the same when returning to us.
 #[derive(Debug, Clone)]
 pub enum Reg {
-    AX, // typically stores return values, also used in math, caller-saved
-    CX, // fourth param, loop counting, string ops, repeated instructions, caller-saved
-    DX, // third param, I/O, overflow in math, caller-saved
-    DI, // first param, destination pointer in string ops, caller-saved
-    SI, // second param, source pointer in string ops, caller-saved
-    R8, // fifth param, caller-saved
-    R9, // sixth param, caller-saved
-    R10, // caller-saved
-    R11, // caller-saved
+    /// typically stores return values, also used in math, caller-saved
+    AX,
+    /// fourth param, loop counting, string ops, repeated instructions, caller-saved
+    CX,
+    /// third param, I/O, overflow in math, caller-saved
+    DX,
+    /// first param, destination pointer in string ops, caller-saved
+    DI,
+    /// second param, source pointer in string ops, caller-saved
+    SI,
+    /// fifth param, caller-saved
+    R8,
+    /// sixth param, caller-saved
+    R9,
+    /// caller-saved
+    R10,
+    /// caller-saved
+    R11,
 }
+
+static ARG_REGISTERS: [Reg; 6] = [Reg::DI, Reg::SI, Reg::DX, Reg::CX, Reg::R8, Reg::R9];
 
 #[derive(Debug, Clone)]
 pub enum ConditionalCode {
@@ -82,26 +93,45 @@ pub struct AssemblyProgram {
 }
 
 pub fn codegen(program: TACKYProgram) -> AssemblyProgram {
-    // TMP UNDO CHANGES HERE
-    // let function = codegen_function(program.function);
+
+    let mut codegen_functions: Vec<AssemblyFunctionDefinition> = Vec::new();
+    for function in program.functions {
+        let codegen_function = codegen_function(function);
+        codegen_functions.push(codegen_function);
+    }
+
     let mut assembly_program = AssemblyProgram {
-        function: AssemblyFunctionDefinition {
-            name: String::new(),
-            instructions: Vec::new(),
-        },
+        functions: codegen_functions
     };
 
-    // println!("BEFORE FIXES:");
-    // println!("{:?}", assembly_program);
-    // let offset = replace_pseudo(&mut assembly_program);
+    println!("BEFORE FIXES:");
+    println!("{:?}", assembly_program);
+    let offset = replace_pseudo(&mut assembly_program);
 
-    // fix_instructions(&mut assembly_program, offset);
+    fix_instructions(&mut assembly_program, offset);
     assembly_program
 }
 
 fn codegen_function(function: TACKYFunctionDefinition) -> AssemblyFunctionDefinition {
     let name = function.name;
-    let instructions = codegen_body(&function.instructions);
+    let num_args = function.args.len();
+
+    let mut instructions: Vec<AssemblyInstruction> = Vec::new();
+
+    let i = 0;
+    while i < num_args {
+        let stack_pseudo_reg = Operand::Pseudo(format!("param{}", i));
+        if i < ARG_REGISTERS.len() {
+            let current_param_reg = Operand::Register(ARG_REGISTERS[i].clone());
+            instructions.push(AssemblyInstruction::Mov(current_param_reg, stack_pseudo_reg));
+        } else {
+            let offset = (i - (ARG_REGISTERS.len() - 1)) * 8 + 8;
+            let current_param_stack = Operand::Stack(offset as i32);
+            instructions.push(AssemblyInstruction::Mov(current_param_stack, stack_pseudo_reg));
+        }
+    }
+
+    instructions.extend(codegen_body(&function.instructions));
 
     AssemblyFunctionDefinition { name, instructions }
 }
@@ -225,8 +255,47 @@ fn codegen_body(instructions: &Vec<TACKYInstruction>) -> Vec<AssemblyInstruction
                 assembly_instructions.push(AssemblyInstruction::Mov(operand, ret_reg));
                 assembly_instructions.push(AssemblyInstruction::Ret);
             }
-            // temp TODO REMOVE
-            _ => {}
+            TACKYInstruction::FuncCall(name, args, dst) => {
+                // adjust stack alignment
+                let register_args = &args[0..6];
+                let stack_args = &args[6..];
+
+                let mut stack_padding = 0;
+                if stack_args.len() % 2 == 1 {
+                    stack_padding = 8;
+                }
+
+                assembly_instructions.push(AssemblyInstruction::AllocateStack(stack_padding));
+                for (i, register_arg) in register_args.iter().enumerate() {
+                    let reg = Operand::Register(ARG_REGISTERS[i].clone());
+                    let assembly_arg = codegen_operand(register_arg);
+                    assembly_instructions.push(AssemblyInstruction::Mov(assembly_arg, reg));
+                }
+
+                for (i, stack_arg) in stack_args.iter().enumerate().rev() {
+                    let assembly_arg = codegen_operand(stack_arg);
+                    match assembly_arg {
+                        Operand::Imm(_) | Operand::Register(_) => {
+                            assembly_instructions.push(AssemblyInstruction::Push(assembly_arg))
+                        }
+                        _ => {
+                            assembly_instructions.push(AssemblyInstruction::Mov(assembly_arg, Operand::Register(Reg::AX)));
+                            assembly_instructions.push(AssemblyInstruction::Push(Operand::Register(Reg::AX)));
+                        }
+                    }
+                }
+
+                assembly_instructions.push(AssemblyInstruction::Call(name.clone()));
+
+
+                let bytes_to_remove = 8 * (stack_args.len() as u32) + stack_padding;
+                if bytes_to_remove != 0 {
+                    assembly_instructions.push(AssemblyInstruction::DeallocateStack(bytes_to_remove))
+                }
+
+                let assembly_dst = codegen_operand(dst);
+                assembly_instructions.push(AssemblyInstruction::Mov(Operand::Register(Reg::AX), assembly_dst));
+            }
         };
     }
     assembly_instructions
