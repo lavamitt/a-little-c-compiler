@@ -74,7 +74,7 @@ pub enum AssemblyInstruction {
     JmpCC(ConditionalCode, String),
     SetCC(ConditionalCode, Operand),
     Label(String),
-    AllocateStack(u32), // ex: subq $n, %rsp
+    AllocateStack(u32),   // ex: subq $n, %rsp
     DeallocateStack(u32), // ex: addq $n, %rsp
     Push(Operand),
     Call(String),
@@ -93,7 +93,6 @@ pub struct AssemblyProgram {
 }
 
 pub fn codegen(program: TACKYProgram) -> AssemblyProgram {
-
     let mut codegen_functions: Vec<AssemblyFunctionDefinition> = Vec::new();
     for function in program.functions {
         let codegen_function = codegen_function(function);
@@ -101,7 +100,7 @@ pub fn codegen(program: TACKYProgram) -> AssemblyProgram {
     }
 
     let mut assembly_program = AssemblyProgram {
-        functions: codegen_functions
+        functions: codegen_functions,
     };
 
     println!("BEFORE FIXES:");
@@ -123,11 +122,17 @@ fn codegen_function(function: TACKYFunctionDefinition) -> AssemblyFunctionDefini
         let stack_pseudo_reg = Operand::Pseudo(format!("param{}", i));
         if i < ARG_REGISTERS.len() {
             let current_param_reg = Operand::Register(ARG_REGISTERS[i].clone());
-            instructions.push(AssemblyInstruction::Mov(current_param_reg, stack_pseudo_reg));
+            instructions.push(AssemblyInstruction::Mov(
+                current_param_reg,
+                stack_pseudo_reg,
+            ));
         } else {
             let offset = (i - (ARG_REGISTERS.len() - 1)) * 8 + 8;
             let current_param_stack = Operand::Stack(offset as i32);
-            instructions.push(AssemblyInstruction::Mov(current_param_stack, stack_pseudo_reg));
+            instructions.push(AssemblyInstruction::Mov(
+                current_param_stack,
+                stack_pseudo_reg,
+            ));
         }
     }
 
@@ -279,22 +284,29 @@ fn codegen_body(instructions: &Vec<TACKYInstruction>) -> Vec<AssemblyInstruction
                             assembly_instructions.push(AssemblyInstruction::Push(assembly_arg))
                         }
                         _ => {
-                            assembly_instructions.push(AssemblyInstruction::Mov(assembly_arg, Operand::Register(Reg::AX)));
-                            assembly_instructions.push(AssemblyInstruction::Push(Operand::Register(Reg::AX)));
+                            assembly_instructions.push(AssemblyInstruction::Mov(
+                                assembly_arg,
+                                Operand::Register(Reg::AX),
+                            ));
+                            assembly_instructions
+                                .push(AssemblyInstruction::Push(Operand::Register(Reg::AX)));
                         }
                     }
                 }
 
                 assembly_instructions.push(AssemblyInstruction::Call(name.clone()));
 
-
                 let bytes_to_remove = 8 * (stack_args.len() as u32) + stack_padding;
                 if bytes_to_remove != 0 {
-                    assembly_instructions.push(AssemblyInstruction::DeallocateStack(bytes_to_remove))
+                    assembly_instructions
+                        .push(AssemblyInstruction::DeallocateStack(bytes_to_remove))
                 }
 
                 let assembly_dst = codegen_operand(dst);
-                assembly_instructions.push(AssemblyInstruction::Mov(Operand::Register(Reg::AX), assembly_dst));
+                assembly_instructions.push(AssemblyInstruction::Mov(
+                    Operand::Register(Reg::AX),
+                    assembly_dst,
+                ));
             }
         };
     }
