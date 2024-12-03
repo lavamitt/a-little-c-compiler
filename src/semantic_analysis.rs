@@ -10,7 +10,7 @@ use std::env::var;
 struct VariableMapEntry {
     new_name: String,
     from_current_scope: bool,
-    has_external_linkage: bool
+    has_external_linkage: bool,
 }
 
 pub fn semantic_pass(context: &mut TACKYContext, program: ASTProgram) -> ASTProgram {
@@ -21,14 +21,13 @@ pub fn semantic_pass(context: &mut TACKYContext, program: ASTProgram) -> ASTProg
 
     for function in program.functions {
         if function.body.is_some() {
-            let resolved_function_body = resolve_block(context, &function.body.unwrap(), &mut variable_map);
-            resolved_functions.push(
-                ASTFunctionDeclaration {
-                    name: function.name,
-                    args: function.args,
-                    body: Some(resolved_function_body)
-                }
-            )
+            let resolved_function_body =
+                resolve_block(context, &function.body.unwrap(), &mut variable_map);
+            resolved_functions.push(ASTFunctionDeclaration {
+                name: function.name,
+                args: function.args,
+                body: Some(resolved_function_body),
+            })
         } else {
             resolved_functions.push(function)
         }
@@ -42,7 +41,7 @@ pub fn semantic_pass(context: &mut TACKYContext, program: ASTProgram) -> ASTProg
     }
 
     ASTProgram {
-        functions: resolved_functions
+        functions: resolved_functions,
     }
 }
 
@@ -60,11 +59,13 @@ fn resolve_block(
                 resolved_block_items.push(ASTBlockItem::Statement(resolved_statement))
             }
             ASTBlockItem::VariableDeclaration(decl) => {
-                let resolved_declaration = resolve_variable_declaration(context, &decl, variable_map);
+                let resolved_declaration =
+                    resolve_variable_declaration(context, &decl, variable_map);
                 resolved_block_items.push(ASTBlockItem::VariableDeclaration(resolved_declaration))
             }
             ASTBlockItem::FunctionDeclaration(decl) => {
-                let resolved_declaration = resolve_function_declaration(context, &decl, variable_map);
+                let resolved_declaration =
+                    resolve_function_declaration(context, &decl, variable_map);
                 resolved_block_items.push(ASTBlockItem::FunctionDeclaration(resolved_declaration))
             }
         }
@@ -117,21 +118,20 @@ fn resolve_statement(
         }
         ASTStatement::For(init, condition, post, body, label) => {
             let mut new_scope_variable_map = copy_variable_map(variable_map);
-            let resolved_for_init = match init {
-                ASTForInit::InitDecl(decl) => ASTForInit::InitDecl(resolve_variable_declaration(
-                    context,
-                    decl,
-                    &mut new_scope_variable_map,
-                )),
-                ASTForInit::InitExpr(maybe_expr) => match maybe_expr {
-                    Some(expr) => ASTForInit::InitExpr(Some(resolve_expr(
-                        context,
-                        expr,
-                        &mut new_scope_variable_map,
-                    ))),
-                    None => ASTForInit::InitExpr(None),
-                },
-            };
+            let resolved_for_init =
+                match init {
+                    ASTForInit::InitDecl(decl) => ASTForInit::InitDecl(
+                        resolve_variable_declaration(context, decl, &mut new_scope_variable_map),
+                    ),
+                    ASTForInit::InitExpr(maybe_expr) => match maybe_expr {
+                        Some(expr) => ASTForInit::InitExpr(Some(resolve_expr(
+                            context,
+                            expr,
+                            &mut new_scope_variable_map,
+                        ))),
+                        None => ASTForInit::InitExpr(None),
+                    },
+                };
 
             let resolved_condition = match condition {
                 Some(expr) => Some(resolve_expr(context, expr, &mut new_scope_variable_map)),
@@ -174,7 +174,7 @@ fn resolve_function_declaration(
     let new_entry = VariableMapEntry {
         new_name: decl.name.clone(),
         from_current_scope: true,
-        has_external_linkage: true
+        has_external_linkage: true,
     };
     variable_map.insert(decl.name.clone(), new_entry);
 
@@ -182,22 +182,23 @@ fn resolve_function_declaration(
     let mut resolved_args: Vec<String> = Vec::new();
 
     for arg in &decl.args {
-        let new_name = resolve_var_identifier(context, &arg, &mut inner_function_scope_variable_map);
+        let new_name =
+            resolve_var_identifier(context, &arg, &mut inner_function_scope_variable_map);
         resolved_args.push(new_name)
     }
 
     let resolved_body = match &decl.body {
         Some(body) => {
-            let _body = resolve_block(context, & body, &mut inner_function_scope_variable_map);
+            let _body = resolve_block(context, &body, &mut inner_function_scope_variable_map);
             Some(_body)
         }
-        None => None
+        None => None,
     };
 
     ASTFunctionDeclaration {
         name: decl.name.clone(),
         args: resolved_args,
-        body: resolved_body
+        body: resolved_body,
     }
 }
 
@@ -206,9 +207,7 @@ fn resolve_var_identifier(
     name: &String,
     variable_map: &mut HashMap<String, VariableMapEntry>,
 ) -> String {
-    if variable_map.contains_key(name)
-        && variable_map.get(name).unwrap().from_current_scope
-    {
+    if variable_map.contains_key(name) && variable_map.get(name).unwrap().from_current_scope {
         panic!("Duplicate variable declaration!: {:?}", name);
     }
 
@@ -218,7 +217,7 @@ fn resolve_var_identifier(
     let new_entry = VariableMapEntry {
         new_name: unique_name.clone(),
         from_current_scope: true,
-        has_external_linkage: false
+        has_external_linkage: false,
     };
 
     variable_map.insert(name.clone(), new_entry);
@@ -254,7 +253,7 @@ fn resolve_expr(
             for arg in args {
                 resolved_args.push(resolve_expr(context, arg, variable_map))
             }
-            return ASTExpression::FunctionCall(identifier.clone(), resolved_args)
+            return ASTExpression::FunctionCall(identifier.clone(), resolved_args);
         }
         ASTExpression::Assignment(left, right) => match **left {
             ASTExpression::Var(_) => {
