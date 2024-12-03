@@ -530,7 +530,10 @@ where
                 (ASTExpression::Var(name.clone()), tokens)
             }
         }
-        _ => panic!("Did not find a way to parse the expression: {:?}", next_token),
+        _ => panic!(
+            "Did not find a way to parse the expression: {:?}",
+            next_token
+        ),
     }
 }
 
