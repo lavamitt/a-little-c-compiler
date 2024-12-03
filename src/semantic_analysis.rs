@@ -3,7 +3,8 @@ use crate::parser::{
     ASTStatement, ASTVariableDeclaration,
 };
 
-use crate::global_context::CompilerContext;
+use crate::global_context::{SymbolType, SymbolTable, CompilerContext};
+use core::panic;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
@@ -24,11 +25,14 @@ pub fn semantic_pass(context: &mut CompilerContext, program: ASTProgram) -> ASTP
         resolved_functions.push(resolved_function);
     }
 
+    // typecheck
+    for function in &resolved_functions {
+        typecheck_function_declaration(&mut context.symbol_table, function);
+    }
+
     // annotate labels
     for function in &mut resolved_functions {
-        if let Some(ref mut body) = function.body {
-            annotate_block(context, body, None);
-        }
+        annotate_function_declaration(context, function, None);
     }
 
     ASTProgram {
@@ -421,8 +425,8 @@ fn annotate_variable_declaration(
     current_label: Option<&str>,
 ) {
     match &mut decl.init {
-        Some(expr) => Some(annotate_expr(context, expr, current_label)),
-        None => None,
+        Some(expr) => annotate_expr(context, expr, current_label),
+        None => {},
     };
 }
 
@@ -432,8 +436,8 @@ fn annotate_function_declaration(
     current_label: Option<&str>,
 ) {
     match &mut decl.body {
-        Some(body) => Some(annotate_block(context, body, current_label)),
-        None => None,
+        Some(body) => annotate_block(context, body, current_label),
+        None => {},
     };
 }
 
@@ -462,5 +466,180 @@ fn annotate_expr(
             annotate_expr(context, right_expr, current_label);
         }
         _ => {}
+    }
+}
+
+pub fn typecheck_block(
+    symbols: &mut SymbolTable,
+    block: &ASTBlock,
+) {
+    for item in &block.items {
+        match item {
+            ASTBlockItem::Statement(statement) => {
+                typecheck_statement(symbols, statement);
+            }
+            ASTBlockItem::VariableDeclaration(decl) => {
+                typecheck_variable_declaration(symbols, decl);
+            }
+            ASTBlockItem::FunctionDeclaration(decl) => {
+                typecheck_function_declaration(symbols, decl);
+            }
+        }
+    }
+}
+
+pub fn typecheck_statement(
+    symbols: &mut SymbolTable,
+    statement: &ASTStatement
+) {
+    match statement {
+        ASTStatement::Return(expr) => {
+            typecheck_expr(symbols, expr);
+        }
+        ASTStatement::If(condition, then, or_else) => {
+            typecheck_expr(symbols, condition);
+            typecheck_statement(symbols, &then);
+            or_else
+                .as_ref()
+                .map(|else_stmt| typecheck_statement(symbols, else_stmt));
+        }
+        ASTStatement::Expression(expr) => {
+            typecheck_expr(symbols, expr);
+        }
+        ASTStatement::Compound(block) => {
+            typecheck_block(symbols, block);
+        }
+        ASTStatement::DoWhile(body, condition, label) => {
+            typecheck_statement(symbols, body);
+            typecheck_expr(symbols, condition);
+        }
+        ASTStatement::While(condition, body, label) => {
+            typecheck_expr(symbols, condition);
+            typecheck_statement(symbols, body);
+        }
+        ASTStatement::For(init, condition, post, body, label) => {
+            match init {
+                ASTForInit::InitDecl(decl) => {
+                    typecheck_variable_declaration(symbols, decl)
+                }
+                ASTForInit::InitExpr(maybe_expr) => match maybe_expr {
+                    Some(expr) => typecheck_expr(symbols, expr),
+                    None => {}
+                },
+            };
+            condition
+                .as_ref()
+                .map(|cond_expr| typecheck_expr(symbols, cond_expr));
+            post
+                .as_ref()
+                .map(|post_expr| typecheck_expr(symbols, post_expr));
+
+            typecheck_statement(symbols, body);
+        }
+        ASTStatement::Break(_) => {},
+        ASTStatement::Continue(_) => {},
+        ASTStatement::Null => {}
+    }
+}
+
+fn typecheck_variable_declaration(
+    symbols: &mut SymbolTable,
+    decl: &ASTVariableDeclaration
+) {
+    symbols.insert(decl.name.clone(), SymbolType::Int);
+    if decl.init.is_some() {
+        typecheck_expr(symbols, &decl.init.as_ref().unwrap())
+    }
+}
+
+fn typecheck_function_declaration(
+    symbols: &mut SymbolTable,
+    decl: &ASTFunctionDeclaration,
+) {
+    let num_args = decl.args.len();
+    let is_defined = decl.body.is_some();
+    let mut func_type = SymbolType::Func(num_args, is_defined);
+    match symbols.get(&decl.name) {
+        Some(existing_symbol_type) => {
+            // check that the declaration matches the signature of the existing declaration
+            if func_type != *existing_symbol_type {
+                panic!("Incompatible function declarations for: {:?}", &decl.name);
+            }
+            // check if the new function defines an already defined function
+            if let SymbolType::Func(_, existing_defined) = existing_symbol_type {
+                if is_defined && *existing_defined {
+                    panic!("Function is defined more than once: {:?}", &decl.name);
+                }
+                func_type = SymbolType::Func(num_args, is_defined || *existing_defined)
+            }
+        }
+        None => {}
+    }
+
+    symbols.insert(decl.name.clone(), func_type);
+
+    match &decl.body {
+        Some(body) => Some(typecheck_block(symbols, body)),
+        None => None,
+    };
+}
+
+fn typecheck_expr(
+    symbols: &mut SymbolTable,
+    expr: &ASTExpression,
+) {
+    match expr {
+        ASTExpression::FunctionCall(name, args) => {
+            match symbols.get(name) {
+                Some(symbol_type) => {
+                    if symbol_type == &SymbolType::Int {
+                        panic!("Tried calling a variable, not a function: {:?}", name)
+                    }
+                    if let SymbolType::Func(num_params, _) = symbol_type {
+                        if args.len() != *num_params {
+                            panic!("Tried calling function with wrong number of arguments: {:?}. Expected {:?} but found {:?}", name, num_params, args.len())
+                        }
+                    }
+                }
+                None => panic!("Tried calling undeclared function: {:?}", name)
+            }
+
+            for arg in args {
+                typecheck_expr(symbols, arg)
+            }
+        }
+
+        ASTExpression::Var(name) => {
+            match symbols.get(name) {
+                Some(symbol_type) => {
+                    if symbol_type != &SymbolType::Int {
+                        panic!("Used function name improperly as variable: {:?}", name)
+                    }
+                }
+                None => panic!("Could not find undeclared variable: {:?}", name)
+            }
+        }
+
+        ASTExpression::Assignment(left, right) => {
+            typecheck_expr(symbols, left);
+            typecheck_expr(symbols, right);
+        }
+
+        ASTExpression::Conditional(condition, then, or_else) => {
+            typecheck_expr(symbols, condition);
+            typecheck_expr(symbols, then);
+            typecheck_expr(symbols, or_else);
+        }
+
+        ASTExpression::UnaryOperation(_, operated_on_expr) => {
+            typecheck_expr(symbols, operated_on_expr);
+        }
+
+        ASTExpression::BinaryOperation(_, left_expr, right_expr) => {
+            typecheck_expr(symbols, left_expr);
+            typecheck_expr(symbols, right_expr);
+        }
+
+        ASTExpression::Constant(_) => {}
     }
 }

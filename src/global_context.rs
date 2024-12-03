@@ -21,15 +21,17 @@ impl HelperFunctions {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum SymbolType {
     Int,
-    Func(u32, bool), // number of params, defined
+    Func(usize, bool), // number of params, defined
 }
+
+pub type SymbolTable = HashMap<String, SymbolType>;
 
 pub struct CompilerContext {
     pub helper: HelperFunctions,
-    pub symbol_table: HashMap<String, SymbolType>,
+    pub symbol_table: SymbolTable,
 }
 
 impl CompilerContext {
