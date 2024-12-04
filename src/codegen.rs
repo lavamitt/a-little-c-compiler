@@ -85,7 +85,7 @@ pub enum AssemblyInstruction {
 pub struct AssemblyFunctionDefinition {
     pub name: String,
     pub instructions: Vec<AssemblyInstruction>,
-    pub stack_size: Option<i32>
+    pub stack_size: Option<i32>,
 }
 
 #[derive(Debug, Clone)]
@@ -139,7 +139,11 @@ fn codegen_function(function: TACKYFunctionDefinition) -> AssemblyFunctionDefini
 
     instructions.extend(codegen_body(&function.instructions));
 
-    AssemblyFunctionDefinition { name, instructions, stack_size: None }
+    AssemblyFunctionDefinition {
+        name,
+        instructions,
+        stack_size: None,
+    }
 }
 
 fn codegen_body(instructions: &Vec<TACKYInstruction>) -> Vec<AssemblyInstruction> {
