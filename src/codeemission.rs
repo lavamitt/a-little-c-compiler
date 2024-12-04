@@ -10,7 +10,7 @@ pub fn emit_code(program: AssemblyProgram) -> String {
         emit_function(&function, &mut assembly);
         add_epilogue(&mut assembly);
     }
-    
+
     assembly
 }
 
@@ -99,7 +99,6 @@ fn emit_instructions(instructions: &[AssemblyInstruction], assembly: &mut String
                 assembly.push_str(&format!("{}popq %rbp\n", INDENT));
                 assembly.push_str(&format!("{}retq\n", INDENT));
             }
-            
         };
     }
 }
@@ -107,7 +106,7 @@ fn emit_instructions(instructions: &[AssemblyInstruction], assembly: &mut String
 pub enum OperandNumBytes {
     One,
     Four,
-    Eight
+    Eight,
 }
 
 fn emit_operand(operand: &Operand, assembly: &mut String, num_bytes: OperandNumBytes) {
@@ -155,27 +154,27 @@ fn reg_to_assembly_str(reg: &Reg, num_bytes: OperandNumBytes) -> &str {
             OperandNumBytes::Eight => "%rcx",
             OperandNumBytes::Four => "%ecx",
             OperandNumBytes::One => "%cl",
-        }
+        },
         Reg::DI => match num_bytes {
             OperandNumBytes::Eight => "%rdi",
             OperandNumBytes::Four => "%edi",
             OperandNumBytes::One => "%dil",
-        }
+        },
         Reg::SI => match num_bytes {
             OperandNumBytes::Eight => "%rsi",
             OperandNumBytes::Four => "%esi",
             OperandNumBytes::One => "%sil",
-        }
+        },
         Reg::R8 => match num_bytes {
             OperandNumBytes::Eight => "%r8",
             OperandNumBytes::Four => "%r8d",
             OperandNumBytes::One => "%r8b",
-        }
+        },
         Reg::R9 => match num_bytes {
             OperandNumBytes::Eight => "%r9",
             OperandNumBytes::Four => "%r9d",
             OperandNumBytes::One => "%r9b",
-        }
+        },
         Reg::R10 => match num_bytes {
             OperandNumBytes::Eight => "%r10",
             OperandNumBytes::Four => "%r10d",
