@@ -445,7 +445,10 @@ pub fn maybe_replace_identifier_with_register(
 pub fn fix_instructions(assembly_program: &mut AssemblyProgram) {
     for function in &mut assembly_program.functions {
         let mut fixed_assembly_instructions: Vec<AssemblyInstruction> = Vec::new();
-        let offset = function.stack_size.expect(&format!("Found function without calculated stack size: {}", function.name));
+        let offset = function.stack_size.expect(&format!(
+            "Found function without calculated stack size: {}",
+            function.name
+        ));
 
         fixed_assembly_instructions.push(AssemblyInstruction::AllocateStack(offset.abs() as u32));
 
