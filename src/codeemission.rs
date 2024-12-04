@@ -6,8 +6,11 @@ const INDENT: &str = "    ";
 
 pub fn emit_code(program: AssemblyProgram) -> String {
     let mut assembly = String::new();
-    emit_function(&program.function, &mut assembly);
-    add_epilogue(&mut assembly);
+    for function in program.functions {
+        emit_function(&function, &mut assembly);
+        add_epilogue(&mut assembly);
+    }
+    
     assembly
 }
 
@@ -80,11 +83,23 @@ fn emit_instructions(instructions: &[AssemblyInstruction], assembly: &mut String
             AssemblyInstruction::AllocateStack(offset) => {
                 assembly.push_str(&format!("{}subq ${}, %rsp\n", INDENT, offset));
             }
+            AssemblyInstruction::DeallocateStack(offset) => {
+                assembly.push_str(&format!("{}addq ${}, %rsp\n", INDENT, offset));
+            }
+            AssemblyInstruction::Push(operand) => {
+                assembly.push_str(&format!("{}pushq ", INDENT));
+                emit_operand(operand, assembly, OperandNumBytes::Eight);
+                assembly.push_str("\n");
+            }
+            AssemblyInstruction::Call(func_name) => {
+                assembly.push_str(&format!("{}call {}\n", INDENT, func_name));
+            }
             AssemblyInstruction::Ret => {
                 assembly.push_str(&format!("{}movq %rbp, %rsp\n", INDENT));
                 assembly.push_str(&format!("{}popq %rbp\n", INDENT));
                 assembly.push_str(&format!("{}retq\n", INDENT));
             }
+            
         };
     }
 }
@@ -92,6 +107,7 @@ fn emit_instructions(instructions: &[AssemblyInstruction], assembly: &mut String
 pub enum OperandNumBytes {
     One,
     Four,
+    Eight
 }
 
 fn emit_operand(operand: &Operand, assembly: &mut String, num_bytes: OperandNumBytes) {
@@ -126,18 +142,47 @@ fn binop_to_assembly_str(binop: &AssemblyBinaryOperator) -> &str {
 fn reg_to_assembly_str(reg: &Reg, num_bytes: OperandNumBytes) -> &str {
     match reg {
         Reg::AX => match num_bytes {
+            OperandNumBytes::Eight => "%rax",
             OperandNumBytes::Four => "%eax",
             OperandNumBytes::One => "%al",
         },
         Reg::DX => match num_bytes {
+            OperandNumBytes::Eight => "%rdx",
             OperandNumBytes::Four => "%edx",
             OperandNumBytes::One => "%dl",
         },
+        Reg::CX => match num_bytes {
+            OperandNumBytes::Eight => "%rcx",
+            OperandNumBytes::Four => "%ecx",
+            OperandNumBytes::One => "%cl",
+        }
+        Reg::DI => match num_bytes {
+            OperandNumBytes::Eight => "%rdi",
+            OperandNumBytes::Four => "%edi",
+            OperandNumBytes::One => "%dil",
+        }
+        Reg::SI => match num_bytes {
+            OperandNumBytes::Eight => "%rsi",
+            OperandNumBytes::Four => "%esi",
+            OperandNumBytes::One => "%sil",
+        }
+        Reg::R8 => match num_bytes {
+            OperandNumBytes::Eight => "%r8",
+            OperandNumBytes::Four => "%r8d",
+            OperandNumBytes::One => "%r8b",
+        }
+        Reg::R9 => match num_bytes {
+            OperandNumBytes::Eight => "%r9",
+            OperandNumBytes::Four => "%r9d",
+            OperandNumBytes::One => "%r9b",
+        }
         Reg::R10 => match num_bytes {
+            OperandNumBytes::Eight => "%r10",
             OperandNumBytes::Four => "%r10d",
             OperandNumBytes::One => "%r10b",
         },
         Reg::R11 => match num_bytes {
+            OperandNumBytes::Eight => "%r11",
             OperandNumBytes::Four => "%r11d",
             OperandNumBytes::One => "%r11b",
         },

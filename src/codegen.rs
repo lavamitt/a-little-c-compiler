@@ -450,7 +450,8 @@ pub fn fix_instructions(assembly_program: &mut AssemblyProgram) {
             function.name
         ));
 
-        fixed_assembly_instructions.push(AssemblyInstruction::AllocateStack(offset.abs() as u32));
+        let rounded_offset = ((offset.abs() + 15) / 16) * 16;
+        fixed_assembly_instructions.push(AssemblyInstruction::AllocateStack(rounded_offset as u32));
 
         for instruction in &mut function.instructions {
             match instruction {
