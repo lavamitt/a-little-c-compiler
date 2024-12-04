@@ -92,7 +92,7 @@ fn emit_instructions(instructions: &[AssemblyInstruction], assembly: &mut String
                 assembly.push_str("\n");
             }
             AssemblyInstruction::Call(func_name) => {
-                assembly.push_str(&format!("{}call {}\n", INDENT, func_name));
+                assembly.push_str(&format!("{}call _{}\n", INDENT, func_name));
             }
             AssemblyInstruction::Ret => {
                 assembly.push_str(&format!("{}movq %rbp, %rsp\n", INDENT));

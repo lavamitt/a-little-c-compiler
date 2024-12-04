@@ -266,10 +266,9 @@ fn codegen_body(instructions: &Vec<TACKYInstruction>) -> Vec<AssemblyInstruction
                 assembly_instructions.push(AssemblyInstruction::Ret);
             }
             TACKYInstruction::FuncCall(name, args, dst) => {
-                // adjust stack alignment
-                let register_args = &args[0..6];
-                let stack_args = &args[6..];
+                let (register_args, stack_args) = args.split_at(args.len().min(6));
 
+                 // adjust stack alignment
                 let mut stack_padding = 0;
                 if stack_args.len() % 2 == 1 {
                     stack_padding = 8;
