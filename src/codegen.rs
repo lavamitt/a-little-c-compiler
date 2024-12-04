@@ -106,9 +106,9 @@ pub fn codegen(program: TACKYProgram) -> AssemblyProgram {
 
     println!("BEFORE FIXES:");
     println!("{:?}", assembly_program);
-    let offset = replace_pseudo(&mut assembly_program);
+    replace_pseudo(&mut assembly_program);
 
-    fix_instructions(&mut assembly_program, offset);
+    fix_instructions(&mut assembly_program);
     assembly_program
 }
 
@@ -442,128 +442,132 @@ pub fn maybe_replace_identifier_with_register(
     }
 }
 
-pub fn fix_instructions(assembly_program: &mut AssemblyProgram, offset: i32) {
-    let mut fixed_assembly_instructions: Vec<AssemblyInstruction> = Vec::new();
-    fixed_assembly_instructions.push(AssemblyInstruction::AllocateStack(offset.abs() as u32));
+pub fn fix_instructions(assembly_program: &mut AssemblyProgram) {
+    for function in &mut assembly_program.functions {
+        let mut fixed_assembly_instructions: Vec<AssemblyInstruction> = Vec::new();
+        let offset = function.stack_size.expect(&format!("Found function without calculated stack size: {}", function.name));
 
-    for instruction in &mut assembly_program.function.instructions {
-        match instruction {
-            AssemblyInstruction::Mov(src, dst) => {
-                if let Operand::Stack(src_offset) = src {
-                    if let Operand::Stack(dst_offset) = dst {
-                        fixed_assembly_instructions.push(AssemblyInstruction::Mov(
-                            src.clone(),
-                            Operand::Register(Reg::R10),
-                        ));
-                        fixed_assembly_instructions.push(AssemblyInstruction::Mov(
-                            Operand::Register(Reg::R10),
-                            dst.clone(),
-                        ));
-                        continue;
+        fixed_assembly_instructions.push(AssemblyInstruction::AllocateStack(offset.abs() as u32));
+
+        for instruction in &mut function.instructions {
+            match instruction {
+                AssemblyInstruction::Mov(src, dst) => {
+                    if let Operand::Stack(src_offset) = src {
+                        if let Operand::Stack(dst_offset) = dst {
+                            fixed_assembly_instructions.push(AssemblyInstruction::Mov(
+                                src.clone(),
+                                Operand::Register(Reg::R10),
+                            ));
+                            fixed_assembly_instructions.push(AssemblyInstruction::Mov(
+                                Operand::Register(Reg::R10),
+                                dst.clone(),
+                            ));
+                            continue;
+                        }
                     }
+                    fixed_assembly_instructions.push(instruction.clone());
                 }
-                fixed_assembly_instructions.push(instruction.clone());
-            }
-            AssemblyInstruction::Binary(AssemblyBinaryOperator::Mult, src, dst) => {
-                if let Operand::Stack(dst_offset) = dst {
-                    fixed_assembly_instructions.push(AssemblyInstruction::Mov(
-                        dst.clone(),
-                        Operand::Register(Reg::R11),
-                    ));
-                    fixed_assembly_instructions.push(AssemblyInstruction::Binary(
-                        AssemblyBinaryOperator::Mult,
-                        src.clone(),
-                        Operand::Register(Reg::R11),
-                    ));
-                    fixed_assembly_instructions.push(AssemblyInstruction::Mov(
-                        Operand::Register(Reg::R11),
-                        dst.clone(),
-                    ));
-                    continue;
-                }
-
-                // maybe this doesnt make sense to put here..
-                // if let Operand::Imm(_) = dst {
-                //     fixed_assembly_instructions.push(AssemblyInstruction::Mov(
-                //         dst.clone(),
-                //         Operand::Register(Reg::R11),
-                //     ));
-                //     fixed_assembly_instructions.push(AssemblyInstruction::Binary(AssemblyBinaryOperator::Mult, src.clone(), Operand::Register(Reg::R11)));
-                //     continue;
-                // }
-
-                fixed_assembly_instructions.push(instruction.clone());
-            }
-            AssemblyInstruction::Binary(binop, src, dst) => {
-                if let Operand::Stack(src_offset) = src {
+                AssemblyInstruction::Binary(AssemblyBinaryOperator::Mult, src, dst) => {
                     if let Operand::Stack(dst_offset) = dst {
                         fixed_assembly_instructions.push(AssemblyInstruction::Mov(
-                            src.clone(),
-                            Operand::Register(Reg::R10),
+                            dst.clone(),
+                            Operand::Register(Reg::R11),
                         ));
                         fixed_assembly_instructions.push(AssemblyInstruction::Binary(
-                            binop.clone(),
-                            Operand::Register(Reg::R10),
+                            AssemblyBinaryOperator::Mult,
+                            src.clone(),
+                            Operand::Register(Reg::R11),
+                        ));
+                        fixed_assembly_instructions.push(AssemblyInstruction::Mov(
+                            Operand::Register(Reg::R11),
                             dst.clone(),
                         ));
                         continue;
                     }
-                }
 
-                // maybe this doesnt make sense to put here..
-                // if let Operand::Imm(_) = dst {
-                //     fixed_assembly_instructions.push(AssemblyInstruction::Mov(
-                //         dst.clone(),
-                //         Operand::Register(Reg::R11),
-                //     ));
-                //     fixed_assembly_instructions.push(AssemblyInstruction::Binary(binop.clone(), src.clone(), Operand::Register(Reg::R11)));
-                //     continue;
-                // }
-                fixed_assembly_instructions.push(instruction.clone());
-            }
-            AssemblyInstruction::Idiv(operand) => {
-                if let Operand::Imm(num) = operand {
-                    fixed_assembly_instructions.push(AssemblyInstruction::Mov(
-                        operand.clone(),
-                        Operand::Register(Reg::R10),
-                    ));
-                    fixed_assembly_instructions
-                        .push(AssemblyInstruction::Idiv(Operand::Register(Reg::R10)));
-                    continue;
+                    // maybe this doesnt make sense to put here..
+                    // if let Operand::Imm(_) = dst {
+                    //     fixed_assembly_instructions.push(AssemblyInstruction::Mov(
+                    //         dst.clone(),
+                    //         Operand::Register(Reg::R11),
+                    //     ));
+                    //     fixed_assembly_instructions.push(AssemblyInstruction::Binary(AssemblyBinaryOperator::Mult, src.clone(), Operand::Register(Reg::R11)));
+                    //     continue;
+                    // }
+
+                    fixed_assembly_instructions.push(instruction.clone());
                 }
-                fixed_assembly_instructions.push(instruction.clone());
-            }
-            AssemblyInstruction::Cmp(src, dst) => {
-                if let Operand::Stack(src_offset) = src {
-                    if let Operand::Stack(dst_offset) = dst {
+                AssemblyInstruction::Binary(binop, src, dst) => {
+                    if let Operand::Stack(src_offset) = src {
+                        if let Operand::Stack(dst_offset) = dst {
+                            fixed_assembly_instructions.push(AssemblyInstruction::Mov(
+                                src.clone(),
+                                Operand::Register(Reg::R10),
+                            ));
+                            fixed_assembly_instructions.push(AssemblyInstruction::Binary(
+                                binop.clone(),
+                                Operand::Register(Reg::R10),
+                                dst.clone(),
+                            ));
+                            continue;
+                        }
+                    }
+
+                    // maybe this doesnt make sense to put here..
+                    // if let Operand::Imm(_) = dst {
+                    //     fixed_assembly_instructions.push(AssemblyInstruction::Mov(
+                    //         dst.clone(),
+                    //         Operand::Register(Reg::R11),
+                    //     ));
+                    //     fixed_assembly_instructions.push(AssemblyInstruction::Binary(binop.clone(), src.clone(), Operand::Register(Reg::R11)));
+                    //     continue;
+                    // }
+                    fixed_assembly_instructions.push(instruction.clone());
+                }
+                AssemblyInstruction::Idiv(operand) => {
+                    if let Operand::Imm(num) = operand {
                         fixed_assembly_instructions.push(AssemblyInstruction::Mov(
-                            src.clone(),
+                            operand.clone(),
                             Operand::Register(Reg::R10),
+                        ));
+                        fixed_assembly_instructions
+                            .push(AssemblyInstruction::Idiv(Operand::Register(Reg::R10)));
+                        continue;
+                    }
+                    fixed_assembly_instructions.push(instruction.clone());
+                }
+                AssemblyInstruction::Cmp(src, dst) => {
+                    if let Operand::Stack(src_offset) = src {
+                        if let Operand::Stack(dst_offset) = dst {
+                            fixed_assembly_instructions.push(AssemblyInstruction::Mov(
+                                src.clone(),
+                                Operand::Register(Reg::R10),
+                            ));
+                            fixed_assembly_instructions.push(AssemblyInstruction::Cmp(
+                                Operand::Register(Reg::R10),
+                                dst.clone(),
+                            ));
+                            continue;
+                        }
+                    }
+
+                    if let Operand::Imm(_) = dst {
+                        fixed_assembly_instructions.push(AssemblyInstruction::Mov(
+                            dst.clone(),
+                            Operand::Register(Reg::R11),
                         ));
                         fixed_assembly_instructions.push(AssemblyInstruction::Cmp(
-                            Operand::Register(Reg::R10),
-                            dst.clone(),
+                            src.clone(),
+                            Operand::Register(Reg::R11),
                         ));
                         continue;
                     }
+                    fixed_assembly_instructions.push(instruction.clone());
                 }
-
-                if let Operand::Imm(_) = dst {
-                    fixed_assembly_instructions.push(AssemblyInstruction::Mov(
-                        dst.clone(),
-                        Operand::Register(Reg::R11),
-                    ));
-                    fixed_assembly_instructions.push(AssemblyInstruction::Cmp(
-                        src.clone(),
-                        Operand::Register(Reg::R11),
-                    ));
-                    continue;
-                }
-                fixed_assembly_instructions.push(instruction.clone());
+                _ => fixed_assembly_instructions.push(instruction.clone()),
             }
-            _ => fixed_assembly_instructions.push(instruction.clone()),
         }
-    }
 
-    assembly_program.function.instructions = fixed_assembly_instructions;
+        function.instructions = fixed_assembly_instructions;
+    }
 }
