@@ -85,6 +85,7 @@ pub enum AssemblyInstruction {
 pub struct AssemblyFunctionDefinition {
     pub name: String,
     pub instructions: Vec<AssemblyInstruction>,
+    pub stack_size: Option<i32>
 }
 
 #[derive(Debug, Clone)]
@@ -138,7 +139,7 @@ fn codegen_function(function: TACKYFunctionDefinition) -> AssemblyFunctionDefini
 
     instructions.extend(codegen_body(&function.instructions));
 
-    AssemblyFunctionDefinition { name, instructions }
+    AssemblyFunctionDefinition { name, instructions, stack_size: None }
 }
 
 fn codegen_body(instructions: &Vec<TACKYInstruction>) -> Vec<AssemblyInstruction> {
@@ -343,73 +344,82 @@ fn codegen_comparative_binop(binop: &TACKYBinaryOperator) -> ConditionalCode {
     }
 }
 
-pub fn replace_pseudo(assembly_program: &mut AssemblyProgram) -> i32 {
-    let mut pseudoregister_map: HashMap<String, i32> = HashMap::new();
-    let mut stack_offset: i32 = 0;
+pub fn replace_pseudo(assembly_program: &mut AssemblyProgram) {
+    for function in &mut assembly_program.functions {
+        let mut pseudoregister_map: HashMap<String, i32> = HashMap::new();
+        let mut stack_offset: i32 = 0;
 
-    for instruction in &mut assembly_program.function.instructions {
-        match instruction {
-            AssemblyInstruction::Mov(src, dst) => {
-                maybe_replace_identifier_with_register(
-                    src,
-                    &mut pseudoregister_map,
-                    &mut stack_offset,
-                );
-                maybe_replace_identifier_with_register(
-                    dst,
-                    &mut pseudoregister_map,
-                    &mut stack_offset,
-                );
+        for instruction in &mut function.instructions {
+            match instruction {
+                AssemblyInstruction::Mov(src, dst) => {
+                    maybe_replace_identifier_with_register(
+                        src,
+                        &mut pseudoregister_map,
+                        &mut stack_offset,
+                    );
+                    maybe_replace_identifier_with_register(
+                        dst,
+                        &mut pseudoregister_map,
+                        &mut stack_offset,
+                    );
+                }
+                AssemblyInstruction::Unary(_, operand) => {
+                    maybe_replace_identifier_with_register(
+                        operand,
+                        &mut pseudoregister_map,
+                        &mut stack_offset,
+                    );
+                }
+                AssemblyInstruction::Binary(_, src, dst) => {
+                    maybe_replace_identifier_with_register(
+                        src,
+                        &mut pseudoregister_map,
+                        &mut stack_offset,
+                    );
+                    maybe_replace_identifier_with_register(
+                        dst,
+                        &mut pseudoregister_map,
+                        &mut stack_offset,
+                    );
+                }
+                AssemblyInstruction::Idiv(operand) => {
+                    maybe_replace_identifier_with_register(
+                        operand,
+                        &mut pseudoregister_map,
+                        &mut stack_offset,
+                    );
+                }
+                AssemblyInstruction::Cmp(src, dst) => {
+                    maybe_replace_identifier_with_register(
+                        src,
+                        &mut pseudoregister_map,
+                        &mut stack_offset,
+                    );
+                    maybe_replace_identifier_with_register(
+                        dst,
+                        &mut pseudoregister_map,
+                        &mut stack_offset,
+                    );
+                }
+                AssemblyInstruction::SetCC(_, operand) => {
+                    maybe_replace_identifier_with_register(
+                        operand,
+                        &mut pseudoregister_map,
+                        &mut stack_offset,
+                    );
+                }
+                AssemblyInstruction::Push(operand) => {
+                    maybe_replace_identifier_with_register(
+                        operand,
+                        &mut pseudoregister_map,
+                        &mut stack_offset,
+                    );
+                }
+                _ => {}
             }
-            AssemblyInstruction::Unary(_, operand) => {
-                maybe_replace_identifier_with_register(
-                    operand,
-                    &mut pseudoregister_map,
-                    &mut stack_offset,
-                );
-            }
-            AssemblyInstruction::Binary(_, src, dst) => {
-                maybe_replace_identifier_with_register(
-                    src,
-                    &mut pseudoregister_map,
-                    &mut stack_offset,
-                );
-                maybe_replace_identifier_with_register(
-                    dst,
-                    &mut pseudoregister_map,
-                    &mut stack_offset,
-                );
-            }
-            AssemblyInstruction::Idiv(operand) => {
-                maybe_replace_identifier_with_register(
-                    operand,
-                    &mut pseudoregister_map,
-                    &mut stack_offset,
-                );
-            }
-            AssemblyInstruction::Cmp(src, dst) => {
-                maybe_replace_identifier_with_register(
-                    src,
-                    &mut pseudoregister_map,
-                    &mut stack_offset,
-                );
-                maybe_replace_identifier_with_register(
-                    dst,
-                    &mut pseudoregister_map,
-                    &mut stack_offset,
-                );
-            }
-            AssemblyInstruction::SetCC(_, operand) => {
-                maybe_replace_identifier_with_register(
-                    operand,
-                    &mut pseudoregister_map,
-                    &mut stack_offset,
-                );
-            }
-            _ => {}
         }
+        function.stack_size = Some(stack_offset);
     }
-    stack_offset
 }
 
 pub fn maybe_replace_identifier_with_register(
