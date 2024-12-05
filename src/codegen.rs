@@ -118,9 +118,8 @@ fn codegen_function(function: TACKYFunctionDefinition) -> AssemblyFunctionDefini
 
     let mut instructions: Vec<AssemblyInstruction> = Vec::new();
 
-    let i = 0;
-    while i < num_args {
-        let stack_pseudo_reg = Operand::Pseudo(format!("param{}", i));
+    for (i, register_arg) in function.args.iter().enumerate() {
+        let stack_pseudo_reg = Operand::Pseudo(register_arg.clone());
         if i < ARG_REGISTERS.len() {
             let current_param_reg = Operand::Register(ARG_REGISTERS[i].clone());
             instructions.push(AssemblyInstruction::Mov(
@@ -268,7 +267,7 @@ fn codegen_body(instructions: &Vec<TACKYInstruction>) -> Vec<AssemblyInstruction
             TACKYInstruction::FuncCall(name, args, dst) => {
                 let (register_args, stack_args) = args.split_at(args.len().min(6));
 
-                 // adjust stack alignment
+                // adjust stack alignment
                 let mut stack_padding = 0;
                 if stack_args.len() % 2 == 1 {
                     stack_padding = 8;

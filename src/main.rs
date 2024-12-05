@@ -103,7 +103,12 @@ fn output_compiled_language(assembly: String, input_path: &Path, generate_object
     fs::write(&output_assembly_path, &assembly)
         .unwrap_or_else(|e| panic!("Failed to write assembly file: {}", e));
 
-    let output_executable = directory.join(stem);
+    let output_executable = if generate_object_file {
+        // Append .o extension for object files
+        directory.join(format!("{}.o", stem))
+    } else {
+        directory.join(stem)
+    };
     let mut gcc_command = Command::new("gcc");
     gcc_command
         .arg(&output_assembly_path)
